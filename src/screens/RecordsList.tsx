@@ -66,6 +66,9 @@ const RecordsList: React.FC<RecordsListProps> = ({ onEditRecord, onEditExpense }
                 </div>
                 
                 <p className="font-bold mb-1">{isRecord ? item.sitio : item.nemonico}</p>
+                {isRecord && item.numeroTarea && (
+                  <p className="text-sm font-bold text-blue mb-1">N° Tarea: {item.numeroTarea}</p>
+                )}
                 <p className="text-sm text-secondary">{isRecord ? item.tarea : item.description}</p>
                 
                 {isRecord ? (

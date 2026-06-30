@@ -19,7 +19,8 @@ const Simulator: React.FC = () => {
     totalDescuentosVarios,
     montoAFP,
     montoSalud,
-    montoCesantia
+    montoCesantia,
+    params
   } = useAppContext();
 
   const formattedMonth = format(currentMonth, 'MMMM yyyy', { locale: es });
@@ -115,50 +116,94 @@ const Simulator: React.FC = () => {
       <div className="glass-card" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
         <h3 className="text-md uppercase text-secondary mb-3 border-b pb-2" style={{ borderColor: 'var(--border-color)' }}>Detalle del Comprobante</h3>
         
-        <h4 className="text-sm font-bold mt-3 mb-2 text-blue">Haberes</h4>
+        {/* HABERES */}
+        <h4 className="text-sm font-bold mt-3 mb-2 text-blue">REMUNERACION FIJA</h4>
         <div className="flex-between text-sm mb-1">
-          <span>Total Imponible</span>
-          <span>{formatCurrency(totalHaberesImponibles)}</span>
+          <span>Sueldo Base</span>
+          <span>{formatCurrency(params.baseSalary)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
-          <span>Total Exento (Asig. y Herramientas)</span>
-          <span>{formatCurrency(totalHaberesExentos)}</span>
-        </div>
-        <div className="flex-between font-bold text-sm mt-2 border-t pt-2" style={{ borderColor: 'var(--border-color)' }}>
-          <span>Total Haberes</span>
-          <span>{formatCurrency(totalHaberes)}</span>
+          <span>Gratificación fija</span>
+          <span>{formatCurrency(params.gratificacion)}</span>
         </div>
 
-        <h4 className="text-sm font-bold mt-5 mb-2 text-orange">Descuentos Legales</h4>
+        <h4 className="text-sm font-bold mt-4 mb-2 text-blue">REMUNERACION VARIABLE</h4>
         <div className="flex-between text-sm mb-1">
-          <span>AFP</span>
+          <span>Incentivo de Producción</span>
+          <span>{formatCurrency(params.incentivoProduccion)}</span>
+        </div>
+        <div className="flex-between text-sm mb-1">
+          <span>Bono de Gestión</span>
+          <span>{formatCurrency(totalExpensesThisMonth)}</span>
+        </div>
+        <div className="flex-between text-sm mb-1">
+          <span>Bono Compensatorio</span>
+          <span>{formatCurrency(bonoCompensatorio)}</span>
+        </div>
+        <div className="flex-between text-sm mb-1">
+          <span>Horas Extras 50%</span>
+          <span>{formatCurrency(totalExtraPayThisMonth)}</span>
+        </div>
+
+        <h4 className="text-sm font-bold mt-4 mb-2 text-blue">REMUNERACIÓN EXENTA</h4>
+        <div className="flex-between text-sm mb-1">
+          <span>Asignación Alimentación</span>
+          <span>{formatCurrency(params.asignacionAlimentacion)}</span>
+        </div>
+        <div className="flex-between text-sm mb-1">
+          <span>Desgaste de herramientas</span>
+          <span>{formatCurrency(params.desgasteHerramientas)}</span>
+        </div>
+
+        <div className="flex-between font-bold text-sm mt-3 border-t pt-2" style={{ borderColor: 'var(--border-color)' }}>
+          <span>TOTAL HABERES</span>
+          <span>{formatCurrency(totalHaberes)}</span>
+        </div>
+        <div className="flex-between text-xs text-secondary mt-1">
+          <span>Total Imponible: {formatCurrency(totalHaberesImponibles)}</span>
+          <span>Total Tributable: {formatCurrency(totalHaberesImponibles - totalDescuentosLegales)}</span>
+        </div>
+
+        {/* DESCUENTOS */}
+        <h4 className="text-sm font-bold mt-5 mb-2 text-orange">DESCUENTOS LEGALES</h4>
+        <div className="flex-between text-sm mb-1">
+          <span>AFP ({params.afpRate}%)</span>
           <span className="text-danger">-{formatCurrency(montoAFP)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
-          <span>Salud (ISAPRE/FONASA)</span>
+          <span>Salud ({params.saludRate}%)</span>
           <span className="text-danger">-{formatCurrency(montoSalud)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
-          <span>Seguro Cesantía</span>
+          <span>Seguro Cesantía ({params.cesantiaRate}%)</span>
           <span className="text-danger">-{formatCurrency(montoCesantia)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
           <span>Impuesto Único (Renta)</span>
           <span className="text-danger">-{formatCurrency(impuestoUnico)}</span>
         </div>
-        <div className="flex-between font-bold text-sm mt-2 border-t pt-2" style={{ borderColor: 'var(--border-color)' }}>
-          <span>Total Legales</span>
-          <span className="text-danger">-{formatCurrency(totalDescuentosLegales + impuestoUnico)}</span>
-        </div>
-
-        <h4 className="text-sm font-bold mt-5 mb-2 text-secondary">Otros Descuentos</h4>
+        
+        <h4 className="text-sm font-bold mt-4 mb-2 text-orange">DESCUENTOS VARIOS</h4>
         <div className="flex-between text-sm mb-1">
-          <span>Sindicato / Préstamos</span>
-          <span className="text-danger">-{formatCurrency(totalDescuentosVarios)}</span>
+          <span>Préstamo Especial</span>
+          <span className="text-danger">-{formatCurrency(params.prestamo)}</span>
+        </div>
+        <div className="flex-between text-sm mb-1">
+          <span>Cuota Manual Sindicato</span>
+          <span className="text-danger">-{formatCurrency(params.cuotaSindicato)}</span>
+        </div>
+        <div className="flex-between text-sm mb-1">
+          <span>Otros Descuentos</span>
+          <span className="text-danger">-{formatCurrency(params.otrosDescuentos)}</span>
         </div>
         
-        <div className="flex-between font-bold text-lg mt-5 border-t pt-4 text-green" style={{ borderColor: 'var(--border-color)' }}>
-          <span>Líquido a Pagar</span>
+        <div className="flex-between font-bold text-sm mt-3 border-t pt-2" style={{ borderColor: 'var(--border-color)' }}>
+          <span>TOTAL DESCUENTOS</span>
+          <span className="text-danger">-{formatCurrency(totalDescuentos)}</span>
+        </div>
+        
+        <div className="flex-between font-bold text-xl mt-5 border-t pt-4 text-green" style={{ borderColor: 'var(--border-color)' }}>
+          <span>LÍQUIDO A PAGAR</span>
           <span>{formatCurrency(liquidoAPagar)}</span>
         </div>
       </div>

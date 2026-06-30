@@ -13,7 +13,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     liquidoAPagar,
     totalExtraPayThisMonth,
     totalExtraHoursThisMonth,
-    diasCompensatoriosGanados
+    diasCompensatoriosGanados,
+    pureTadDays,
+    contingencyDaysThisMonth,
+    apoyoTadDays
   } = useAppContext();
 
   const formattedMonth = format(currentMonth, 'MMMM yyyy', { locale: es });
@@ -54,6 +57,24 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <p className="text-xs text-secondary">Días Compens. Ganados</p>
           <p className="stat-value text-blue">{diasCompensatoriosGanados}</p>
           <p className="text-xs text-muted mt-1">Por feriados/domingos</p>
+        </div>
+        
+        <div className="stat-box mt-2">
+          <p className="text-xs text-secondary">Días TAP Trabajados</p>
+          <p className="stat-value text-green">{pureTadDays}</p>
+          <p className="text-xs text-muted mt-1">Total del mes</p>
+        </div>
+
+        <div className="stat-box mt-2">
+          <p className="text-xs text-secondary">Días Contingencia</p>
+          <p className="stat-value text-purple">{contingencyDaysThisMonth}</p>
+          <p className="text-xs text-muted mt-1">Total del mes</p>
+        </div>
+
+        <div className="stat-box mt-2" style={{ gridColumn: 'span 2' }}>
+          <p className="text-xs text-secondary">Días Apoyo TAP</p>
+          <p className="stat-value text-green">{apoyoTadDays}</p>
+          <p className="text-xs text-muted mt-1">Total del mes</p>
         </div>
       </div>
 

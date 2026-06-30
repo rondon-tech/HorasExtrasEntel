@@ -13,6 +13,7 @@ export interface DailyRecord {
   startTime: string; // HH:mm
   endTime: string;   // HH:mm
   sitio: string;
+  numeroTarea: string;
   tarea: string;
   extraHours: number;
   notes?: string;
@@ -40,7 +41,10 @@ export interface MonthlyParams {
   desgasteHerramientas: number;
   cuotaSindicato: number;
   prestamo: number;
+  otrosDescuentos: number;
 }
+
+
 
 export interface AppState {
   currentMonth: Date;
@@ -69,6 +73,8 @@ interface AppContextType extends AppState {
   contingencyDaysThisMonth: number;
   diasCompensatoriosGanados: number; // Días feriados/domingos trabajados únicos
   bonoCompensatorio: number; // TAD + Contingencia
+  pureTadDays: number;
+  apoyoTadDays: number;
   
   // Liquidacion specifics
   totalSueldoBase: number;
@@ -115,62 +121,126 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // --- Provider Component ---
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<AppState>(() => {
-    const saved = localStorage.getItem('entel_horas_extras_data');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      const mergedParams = { ...defaultParams, ...(parsed.params || {}) };
-      return {
-        ...parsed,
-        currentMonth: new Date(),
-        records: parsed.records || [],
-        expenses: parsed.expenses || [],
-        params: mergedParams,
-      };
-    }
-    return initialState;
-  });
+  const [state, setState] = useState<AppState>(initialState);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch initial data from backend
   useEffect(() => {
-    localStorage.setItem('entel_horas_extras_data', JSON.stringify({
-      records: state.records,
-      expenses: state.expenses,
-      params: state.params,
-    }));
-  }, [state.records, state.expenses, state.params]);
+    const fetchData = async () => {
+      try {
+        const [paramsRes, recordsRes, expensesRes] = await Promise.all([
+          fetch('/api/params'),
+          fetch('/api/records'),
+          fetch('/api/expenses')
+        ]);
+        
+        if (paramsRes.ok && recordsRes.ok && expensesRes.ok) {
+          const params = await paramsRes.json();
+          const records = await recordsRes.json();
+          const expenses = await expensesRes.json();
+          
+          setState(s => ({
+            ...s,
+            params,
+            records,
+            expenses
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching data from API:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const setCurrentMonth = (date: Date) => setState(s => ({ ...s, currentMonth: date }));
   
-  // Notice we removed the "filter by date" on addRecord because the user might want multiple tasks per day.
-  // We keep all records uniquely by their UUID.
-  const addRecord = (record: Omit<DailyRecord, 'id'>) => {
-    const newRecord = { ...record, id: crypto.randomUUID() };
-    setState(s => ({ ...s, records: [...s.records, newRecord] }));
+  const addRecord = async (record: Omit<DailyRecord, 'id'>) => {
+    try {
+      const res = await fetch('/api/records', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record)
+      });
+      if (res.ok) {
+        const { id } = await res.json();
+        setState(s => ({ ...s, records: [{ ...record, id }, ...s.records] }));
+      }
+    } catch (e) { console.error(e); }
   };
   
-  const editRecord = (id: string, record: Omit<DailyRecord, 'id'>) => {
-    setState(s => ({
-      ...s,
-      records: s.records.map(r => r.id === id ? { ...record, id } : r)
-    }));
+  const editRecord = async (id: string, record: Omit<DailyRecord, 'id'>) => {
+    try {
+      const res = await fetch(`/api/records/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record)
+      });
+      if (res.ok) {
+        setState(s => ({
+          ...s,
+          records: s.records.map(r => r.id === id ? { ...record, id } : r)
+        }));
+      }
+    } catch (e) { console.error(e); }
   };
   
-  const deleteRecord = (id: string) => setState(s => ({ ...s, records: s.records.filter(r => r.id !== id) }));
-  
-  const addExpense = (expense: Omit<ExpenseRecord, 'id'>) => {
-    const newExpense = { ...expense, id: crypto.randomUUID() };
-    setState(s => ({ ...s, expenses: [newExpense, ...s.expenses] }));
+  const deleteRecord = async (id: string) => {
+    try {
+      await fetch(`/api/records/${id}`, { method: 'DELETE' });
+      setState(s => ({ ...s, records: s.records.filter(r => r.id !== id) }));
+    } catch (e) { console.error(e); }
   };
   
-  const editExpense = (id: string, expense: Omit<ExpenseRecord, 'id'>) => {
-    setState(s => ({
-      ...s,
-      expenses: s.expenses.map(e => e.id === id ? { ...expense, id } : e)
-    }));
+  const addExpense = async (expense: Omit<ExpenseRecord, 'id'>) => {
+    try {
+      const res = await fetch('/api/expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expense)
+      });
+      if (res.ok) {
+        const { id } = await res.json();
+        setState(s => ({ ...s, expenses: [{ ...expense, id }, ...s.expenses] }));
+      }
+    } catch (e) { console.error(e); }
   };
   
-  const deleteExpense = (id: string) => setState(s => ({ ...s, expenses: s.expenses.filter(e => e.id !== id) }));
-  const updateParams = (params: MonthlyParams) => setState(s => ({ ...s, params }));
+  const editExpense = async (id: string, expense: Omit<ExpenseRecord, 'id'>) => {
+    try {
+      const res = await fetch(`/api/expenses/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expense)
+      });
+      if (res.ok) {
+        setState(s => ({
+          ...s,
+          expenses: s.expenses.map(e => e.id === id ? { ...expense, id } : e)
+        }));
+      }
+    } catch (e) { console.error(e); }
+  };
+  
+  const deleteExpense = async (id: string) => {
+    try {
+      await fetch(`/api/expenses/${id}`, { method: 'DELETE' });
+      setState(s => ({ ...s, expenses: s.expenses.filter(e => e.id !== id) }));
+    } catch (e) { console.error(e); }
+  };
+
+  const updateParams = async (params: MonthlyParams) => {
+    try {
+      await fetch('/api/params', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      setState(s => ({ ...s, params }));
+    } catch (e) { console.error(e); }
+  };
 
   // Computations
   const start = startOfMonth(state.currentMonth);
@@ -182,8 +252,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // A. Sueldo Base (Agrupado)
   const totalSueldoBase = state.params.baseSalary + state.params.gratificacion + state.params.incentivoProduccion;
 
-  // D. Cálculo de Horas Extras según Código de Trabajo
-  const extraHourRate = (state.params.baseSalary / 30) * 28 / state.params.weeklyHours * 1.5;
+  // D. Cálculo de Horas Extras según Código de Trabajo (y liquidación Entel)
+  // La liquidación de Entel usa: (Sueldo Base + Incentivo de Producción) / 120
+  // Lo cual equivale matemáticamente a una jornada de 42 horas exactas.
+  const baseParaHorasExtras = state.params.baseSalary + state.params.incentivoProduccion;
+  const extraHourRate = baseParaHorasExtras / 120;
   const totalExtraHoursThisMonth = thisMonthRecords.reduce((acc, r) => acc + r.extraHours, 0);
   const totalExtraPayThisMonth = Math.round(totalExtraHoursThisMonth * extraHourRate);
 
@@ -193,10 +266,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // C. Bono Compensatorio (Bono TAD + Bono Contingencia)
   // Utilizamos Set para extraer fechas únicas. Así, si hay 3 registros en 1 día TAD, solo se paga 1 bono.
-  const uniqueTADDates = new Set(thisMonthRecords.filter(r => r.dayType === 'TAD' || r.dayType === 'TAD Apoyo').map(r => r.date));
+  const uniquePureTADDates = new Set(thisMonthRecords.filter(r => r.dayType === 'TAD').map(r => r.date));
+  const uniqueApoyoTADDates = new Set(thisMonthRecords.filter(r => r.dayType === 'TAD Apoyo').map(r => r.date));
   const uniqueContingenciaDates = new Set(thisMonthRecords.filter(r => r.isContingencia).map(r => r.date));
   
-  const tadDaysThisMonth = uniqueTADDates.size;
+  const pureTadDays = uniquePureTADDates.size;
+  const apoyoTadDays = uniqueApoyoTADDates.size;
+  const tadDaysThisMonth = pureTadDays + apoyoTadDays;
   const contingencyDaysThisMonth = uniqueContingenciaDates.size;
   
   const bonoTAD = tadDaysThisMonth * state.params.tadRate;
@@ -236,7 +312,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // 4. Haberes Exentos y Descuentos Varios
   const totalHaberesExentos = state.params.asignacionAlimentacion + state.params.desgasteHerramientas;
-  const totalDescuentosVarios = state.params.cuotaSindicato + state.params.prestamo;
+  const totalDescuentosVarios = state.params.cuotaSindicato + state.params.prestamo + state.params.otrosDescuentos;
 
   // 5. Liquido a Pagar
   const liquidoAPagar = totalHaberesImponibles - totalDescuentosLegales - impuestoUnico + totalHaberesExentos - totalDescuentosVarios;
@@ -256,6 +332,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     totalExtraPayThisMonth,
     totalExpensesThisMonth,
     tadDaysThisMonth,
+    pureTadDays,
+    apoyoTadDays,
     contingencyDaysThisMonth,
     diasCompensatoriosGanados,
     bonoCompensatorio,

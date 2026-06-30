@@ -40,6 +40,7 @@ const DailyRecord: React.FC<Props> = ({ editingId, onSave }) => {
   const [isFeriado, setIsFeriado] = useState(false);
   const [isContingencia, setIsContingencia] = useState(false);
   const [sitio, setSitio] = useState('');
+  const [numeroTarea, setNumeroTarea] = useState('');
   const [tarea, setTarea] = useState(tareasOptions[0]);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -54,6 +55,7 @@ const DailyRecord: React.FC<Props> = ({ editingId, onSave }) => {
         setIsFeriado(record.isFeriado || false);
         setIsContingencia(record.isContingencia || false);
         setSitio(record.sitio);
+        setNumeroTarea(record.numeroTarea || '');
         setTarea(record.tarea);
         setStartTime(record.startTime);
         setEndTime(record.endTime);
@@ -86,6 +88,13 @@ const DailyRecord: React.FC<Props> = ({ editingId, onSave }) => {
       alert('Por favor, seleccione una descripción de tarea válida.');
       return;
     }
+    if (numeroTarea.trim() !== '') {
+      const isDuplicate = records.some(r => r.numeroTarea?.trim() === numeroTarea.trim() && r.id !== editingId);
+      if (isDuplicate) {
+        alert('Este número de tarea ya ha sido registrado anteriormente.');
+        return;
+      }
+    }
 
     const recordData = {
       date,
@@ -95,6 +104,7 @@ const DailyRecord: React.FC<Props> = ({ editingId, onSave }) => {
       startTime,
       endTime,
       sitio,
+      numeroTarea,
       tarea,
       extraHours: computedHours
     };
@@ -107,9 +117,14 @@ const DailyRecord: React.FC<Props> = ({ editingId, onSave }) => {
       addRecord(recordData);
       alert('Registro guardado correctamente');
       setSitio('');
+      setNumeroTarea('');
       setTarea(tareasOptions[0]);
       setStartTime('');
       setEndTime('');
+      setDate(format(new Date(), 'yyyy-MM-dd'));
+      setDayType('Normal');
+      setIsFeriado(false);
+      setIsContingencia(false);
     }
   };
 
@@ -147,19 +162,32 @@ const DailyRecord: React.FC<Props> = ({ editingId, onSave }) => {
           </div>
         </div>
 
-        <div className="form-group border-t pt-4" style={{ borderColor: 'var(--border-color)' }}>
-          <label className="form-label">Sitio</label>
-          <input 
-            type="text" 
-            className="form-control" 
-            value={sitio} 
-            onChange={e => setSitio(e.target.value)}
-            placeholder="Nombre del sitio (ej: Florida 1)"
-            required
-          />
+        <div className="grid-2 border-t pt-4" style={{ borderColor: 'var(--border-color)' }}>
+          <div className="form-group mb-0">
+            <label className="form-label">Sitio</label>
+            <input 
+              type="text" 
+              className="form-control" 
+              value={sitio} 
+              onChange={e => setSitio(e.target.value)}
+              placeholder="Nombre del sitio (ej: Florida 1)"
+              required
+            />
+          </div>
+          <div className="form-group mb-0">
+            <label className="form-label">Número de tarea</label>
+            <input 
+              type="text" 
+              className="form-control" 
+              value={numeroTarea} 
+              onChange={e => setNumeroTarea(e.target.value)}
+              placeholder="ID / N° de tarea"
+              required
+            />
+          </div>
         </div>
 
-        <div className="form-group">
+        <div className="form-group mt-4">
           <label className="form-label">Descripción Tarea</label>
           <select 
             className="form-control" 
