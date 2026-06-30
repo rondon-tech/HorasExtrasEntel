@@ -9,8 +9,8 @@ interface RecordsListProps {
 }
 
 const RecordsList: React.FC<RecordsListProps> = ({ onEditRecord, onEditExpense }) => {
-  const { currentMonth, records, expenses, deleteRecord, deleteExpense, params } = useAppContext();
-  const [filterType, setFilterType] = useState<'all' | 'records' | 'expenses'>('all');
+  const { records, expenses, deleteRecord, deleteExpense, params } = useAppContext();
+  const [filterType, setFilterType] = useState<'all' | 'record' | 'expense'>('all');
 
   // We should list all records, maybe sorted by date descending
   const allItems = [
@@ -38,12 +38,12 @@ const RecordsList: React.FC<RecordsListProps> = ({ onEditRecord, onEditExpense }
         <select 
           className="form-control" 
           value={filterType} 
-          onChange={e => setFilterType(e.target.value as 'all' | 'records' | 'expenses')}
+          onChange={e => setFilterType(e.target.value as 'all' | 'record' | 'expense')}
           style={{ maxWidth: '200px' }}
         >
           <option value="all">Ver Todos</option>
-          <option value="records">Solo Horas Extras</option>
-          <option value="expenses">Solo Viáticos</option>
+          <option value="record">Solo Horas Extras</option>
+          <option value="expense">Solo Viáticos</option>
         </select>
       </div>
 

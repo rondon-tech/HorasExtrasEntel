@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Home, CalendarPlus, Receipt, History as HistoryIcon, Sun, Moon, PieChart, List } from 'lucide-react';
+import { Home, CalendarPlus, History as HistoryIcon, Sun, Moon, PieChart, List } from 'lucide-react';
 import Dashboard from './screens/Dashboard';
 import DailyRecord from './screens/DailyRecord';
 import Expenses from './screens/Expenses';

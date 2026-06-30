@@ -77,7 +77,10 @@ const Simulator: React.FC = () => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Tooltip 
+                formatter={(value: any) => formatCurrency(value as number)}
+                labelStyle={{ color: '#000' }}
+              />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -102,7 +105,7 @@ const Simulator: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={10} />
                 <YAxis stroke="var(--text-secondary)" fontSize={10} tickFormatter={(val) => `$${val/1000}k`} />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Tooltip formatter={(value: any) => formatCurrency(value as number)} />
                 <Legend iconSize={8} wrapperStyle={{ fontSize: '10px' }} />
                 <Bar dataKey="Ingresos" fill="#10b981" radius={[2, 2, 0, 0]} />
                 <Bar dataKey="Descuentos" fill="#ef4444" radius={[2, 2, 0, 0]} />

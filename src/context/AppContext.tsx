@@ -108,6 +108,7 @@ const defaultParams: MonthlyParams = {
   desgasteHerramientas: 20000,
   cuotaSindicato: 6392,
   prestamo: 10000,
+  otrosDescuentos: 0
 };
 
 const initialState: AppState = {
@@ -122,7 +123,6 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 // --- Provider Component ---
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AppState>(initialState);
-  const [isLoading, setIsLoading] = useState(true);
 
   // Fetch initial data from backend
   useEffect(() => {
@@ -148,8 +148,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       } catch (err) {
         console.error('Error fetching data from API:', err);
-      } finally {
-        setIsLoading(false);
       }
     };
     fetchData();
