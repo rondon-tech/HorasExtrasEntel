@@ -2,12 +2,59 @@ import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+import { requireAuth } from './middlewares/auth.js';
+import { validate } from './middlewares/validate.js';
+import { recordSchema } from './schemas/record.schema.js';
+import { expenseSchema } from './schemas/expense.schema.js';
+import { paramsSchema } from './schemas/params.schema.js';
+import { calculatePayroll } from './services/payroll.service.js';
+import { logger } from './utils/logger.js';
+import { errorHandler } from './middlewares/errorHandler.js';
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+// Strict CORS: allow localhost for dev, and VERCEL_URL or specific FRONTEND_URL for prod
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
+
+// Log all incoming requests
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.url}`);
+  next();
+});
+
+// --- Authentication Endpoint ---
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  // Default fallback credentials for MVP dev (should be in .env)
+  const validUser = process.env.ADMIN_USER || 'admin';
+  const validPass = process.env.ADMIN_PASSWORD || 'password123';
+  
+  if (username === validUser && password === validPass) {
+    const token = jwt.sign({ username, role: 'admin' }, process.env.JWT_SECRET || 'dev-secret-key-12345', { expiresIn: '12h' });
+    return res.json({ token });
+  }
+  return res.status(401).json({ error: 'Invalid credentials' });
+});
+
 
 // Set up PostgreSQL connection
 const { Pool } = pg;
@@ -20,7 +67,7 @@ const pool = new Pool({
 
 // Handle idle connection errors (Neon closes idle connections)
 pool.on('error', (err, client) => {
-  console.error('Unexpected error on idle client', err);
+  logger.error(`Unexpected error on idle client: ${err.message}`, err);
 });
 
 // Initialize database tables
@@ -83,15 +130,15 @@ const initDB = async () => {
       await pool.query('INSERT INTO params (id) VALUES (1)');
     }
     
-    console.log('Database tables initialized.');
+    logger.info('Database tables initialized.');
   } catch (err) {
-    console.error('Error initializing database:', err);
+    logger.error(`Error initializing database: ${err.message}`, err);
   }
 };
 initDB();
 
 // --- Endpoints for Params ---
-app.get('/api/params', async (req, res) => {
+app.get('/api/params', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await pool.query('SELECT * FROM params WHERE id = 1');
     if (rows.length > 0) {
@@ -118,11 +165,11 @@ app.get('/api/params', async (req, res) => {
       res.status(404).json({ error: 'Params not found' });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-app.put('/api/params', async (req, res) => {
+app.put('/api/params', requireAuth, validate(paramsSchema), async (req, res, next) => {
   try {
     const {
       baseSalary, gratificacion, incentivoProduccion, weeklyHours,
@@ -147,12 +194,44 @@ app.put('/api/params', async (req, res) => {
     ]);
     res.json({ message: 'Params updated' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
+  }
+});
+
+// --- Endpoint for Payroll Calculation ---
+app.get('/api/payroll/:year/:month', requireAuth, async (req, res, next) => {
+  try {
+    const { year, month } = req.params;
+    
+    // 1. Get Params
+    const { rows: paramRows } = await pool.query('SELECT * FROM params WHERE id = 1');
+    if (paramRows.length === 0) return res.status(500).json({ error: 'Params missing' });
+    const params = paramRows[0];
+
+    // 2. Get Records for the specific month
+    // PostgreSQL date functions: EXTRACT(YEAR FROM date) = $1 AND EXTRACT(MONTH FROM date) = $2
+    const { rows: records } = await pool.query(`
+      SELECT * FROM records 
+      WHERE EXTRACT(YEAR FROM date) = $1 AND EXTRACT(MONTH FROM date) = $2
+    `, [year, month]);
+
+    // 3. Get Expenses for the specific month
+    const { rows: expenses } = await pool.query(`
+      SELECT * FROM expenses 
+      WHERE EXTRACT(YEAR FROM date) = $1 AND EXTRACT(MONTH FROM date) = $2
+    `, [year, month]);
+
+    // 4. Calculate Payroll
+    const payrollSummary = calculatePayroll(records, expenses, params);
+    
+    res.json(payrollSummary);
+  } catch (err) {
+    next(err);
   }
 });
 
 // --- Endpoints for Records ---
-app.get('/api/records', async (req, res) => {
+app.get('/api/records', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await pool.query('SELECT * FROM records ORDER BY date DESC, start_time DESC');
     const mapped = rows.map(r => ({
@@ -170,11 +249,11 @@ app.get('/api/records', async (req, res) => {
     }));
     res.json(mapped);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-app.post('/api/records', async (req, res) => {
+app.post('/api/records', requireAuth, validate(recordSchema), async (req, res, next) => {
   try {
     const { date, dayType, isFeriado, isContingencia, startTime, endTime, sitio, numeroTarea, tarea, extraHours } = req.body;
     const { rows } = await pool.query(`
@@ -183,11 +262,11 @@ app.post('/api/records', async (req, res) => {
     `, [date, dayType, isFeriado, isContingencia, startTime, endTime, sitio, numeroTarea, tarea, extraHours]);
     res.json({ id: rows[0].id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-app.put('/api/records/:id', async (req, res) => {
+app.put('/api/records/:id', requireAuth, validate(recordSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { date, dayType, isFeriado, isContingencia, startTime, endTime, sitio, numeroTarea, tarea, extraHours } = req.body;
@@ -199,22 +278,22 @@ app.put('/api/records/:id', async (req, res) => {
     `, [date, dayType, isFeriado, isContingencia, startTime, endTime, sitio, numeroTarea, tarea, extraHours, id]);
     res.json({ message: 'Record updated' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-app.delete('/api/records/:id', async (req, res) => {
+app.delete('/api/records/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     await pool.query('DELETE FROM records WHERE id = $1', [id]);
     res.json({ message: 'Record deleted' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // --- Endpoints for Expenses ---
-app.get('/api/expenses', async (req, res) => {
+app.get('/api/expenses', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await pool.query('SELECT * FROM expenses ORDER BY date DESC');
     const mapped = rows.map(e => ({
@@ -225,11 +304,11 @@ app.get('/api/expenses', async (req, res) => {
     }));
     res.json(mapped);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-app.post('/api/expenses', async (req, res) => {
+app.post('/api/expenses', requireAuth, validate(expenseSchema), async (req, res, next) => {
   try {
     const { date, nemonico, description } = req.body;
     const { rows } = await pool.query(`
@@ -238,11 +317,11 @@ app.post('/api/expenses', async (req, res) => {
     `, [date, nemonico, description]);
     res.json({ id: rows[0].id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-app.put('/api/expenses/:id', async (req, res) => {
+app.put('/api/expenses/:id', requireAuth, validate(expenseSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { date, nemonico, description } = req.body;
@@ -252,24 +331,27 @@ app.put('/api/expenses/:id', async (req, res) => {
     `, [date, nemonico, description, id]);
     res.json({ message: 'Expense updated' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-app.delete('/api/expenses/:id', async (req, res) => {
+app.delete('/api/expenses/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     await pool.query('DELETE FROM expenses WHERE id = $1', [id]);
     res.json({ message: 'Expense deleted' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
+
+// Mount the global error handler at the end
+app.use(errorHandler);
 
 if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 3001;
   app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    logger.info(`Server running on port ${PORT}`);
   });
 }
 

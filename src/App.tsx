@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Home, CalendarPlus, History as HistoryIcon, Sun, Moon, PieChart, List } from 'lucide-react';
+import { Home, CalendarPlus, History as HistoryIcon, Sun, Moon, PieChart, List, LogOut } from 'lucide-react';
 import Dashboard from './screens/Dashboard';
 import DailyRecord from './screens/DailyRecord';
 import Expenses from './screens/Expenses';
 import History from './screens/History';
 import Simulator from './screens/Simulator';
 import RecordsList from './screens/RecordsList';
+import Login from './screens/Login';
+import { useAuth } from './context/AuthContext';
 
 function App() {
+  const { isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [theme, setTheme] = useState(() => localStorage.getItem('entel_theme') || 'dark');
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
@@ -39,6 +42,10 @@ function App() {
   }, [activeTab]);
 
   const renderContent = () => {
+    if (!isAuthenticated) {
+      return <Login />;
+    }
+
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard onNavigate={setActiveTab} />;
@@ -61,57 +68,71 @@ function App() {
     <div className="app-container">
       <header className="flex-between" style={{ padding: '1.5rem 1.5rem 0' }}>
         <div className="font-bold text-xs text-secondary tracking-wider uppercase">Entel Horas Extras</div>
-        <button 
-          onClick={toggleTheme}
-          className="btn-icon"
-          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', cursor: 'pointer' }}
-          title="Cambiar Tema"
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {isAuthenticated && (
+            <button 
+              onClick={logout}
+              className="btn-icon"
+              style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', cursor: 'pointer' }}
+              title="Cerrar Sesión"
+            >
+              <LogOut size={18} />
+            </button>
+          )}
+          <button 
+            onClick={toggleTheme}
+            className="btn-icon"
+            style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', cursor: 'pointer' }}
+            title="Cambiar Tema"
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
       </header>
 
       <div className="content-area">
         {renderContent()}
       </div>
 
-      <nav className="bottom-nav">
-        <button 
-          className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-          onClick={() => setActiveTab('dashboard')}
-        >
-          <Home size={20} />
-          <span>Inicio</span>
-        </button>
-        <button 
-          className={`nav-item ${activeTab === 'records' ? 'active' : ''}`}
-          onClick={() => setActiveTab('records')}
-        >
-          <List size={20} />
-          <span>Registros</span>
-        </button>
-        <button 
-          className={`nav-item ${(activeTab === 'record' || activeTab === 'expenses') ? 'active' : ''}`}
-          onClick={() => setActiveTab('record')}
-        >
-          <CalendarPlus size={20} />
-          <span>Ingresar</span>
-        </button>
-        <button 
-          className={`nav-item ${activeTab === 'simulator' ? 'active' : ''}`}
-          onClick={() => setActiveTab('simulator')}
-        >
-          <PieChart size={20} />
-          <span>Reporte</span>
-        </button>
-        <button 
-          className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          <HistoryIcon size={20} />
-          <span>Ajustes</span>
-        </button>
-      </nav>
+      {isAuthenticated && (
+        <nav className="bottom-nav">
+          <button 
+            className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setActiveTab('dashboard')}
+          >
+            <Home size={20} />
+            <span>Inicio</span>
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'records' ? 'active' : ''}`}
+            onClick={() => setActiveTab('records')}
+          >
+            <List size={20} />
+            <span>Registros</span>
+          </button>
+          <button 
+            className={`nav-item ${(activeTab === 'record' || activeTab === 'expenses') ? 'active' : ''}`}
+            onClick={() => setActiveTab('record')}
+          >
+            <CalendarPlus size={20} />
+            <span>Ingresar</span>
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'simulator' ? 'active' : ''}`}
+            onClick={() => setActiveTab('simulator')}
+          >
+            <PieChart size={20} />
+            <span>Reporte</span>
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            <HistoryIcon size={20} />
+            <span>Ajustes</span>
+          </button>
+        </nav>
+      )}
     </div>
   );
 }
