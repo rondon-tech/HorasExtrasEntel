@@ -2,31 +2,58 @@ import React from 'react';
 import { useAppContext } from '../context/AppContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { ArrowLeft, Download, Share2 } from 'lucide-react';
+import { generatePayrollPDF } from '../utils/payrollPdfGenerator';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 
-const Simulator: React.FC = () => {
+const Simulator: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNavigate = () => {} }) => {
+  const appContextData = useAppContext();
   const {
     currentMonth,
-    liquidoAPagar,
     totalSueldoBase,
-    totalExtraPayThisMonth,
-    bonoCompensatorio,
-    totalExpensesThisMonth,
     totalHaberesImponibles,
-    totalHaberesExentos,
     totalDescuentosLegales,
     impuestoUnico,
+    totalHaberesExentos,
     totalDescuentosVarios,
+    liquidoAPagar,
+    totalExtraPayThisMonth,
+    totalExpensesThisMonth,
+    bonoCompensatorio,
     montoAFP,
     montoSalud,
     montoCesantia,
     params
-  } = useAppContext();
+  } = appContextData;
 
   const formattedMonth = format(currentMonth, 'MMMM yyyy', { locale: es });
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value || 0);
+  };
+
+  const handleDownloadPDF = () => {
+    const doc = generatePayrollPDF(appContextData, currentMonth);
+    doc.save(`Liquidacion_Entel_${format(currentMonth, 'MMM_yyyy')}.pdf`);
+  };
+
+  const handleSharePDF = async () => {
+    const doc = generatePayrollPDF(appContextData, currentMonth);
+    const pdfBlob = doc.output('blob');
+    const file = new File([pdfBlob], `Liquidacion_Entel_${format(currentMonth, 'MMM_yyyy')}.pdf`, { type: 'application/pdf' });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: `Liquidación Entel - ${format(currentMonth, 'MMMM yyyy', { locale: es })}`,
+          text: 'Adjunto detalle de la simulación de liquidación.',
+          files: [file]
+        });
+      } catch (err) { console.log(err); }
+    } else {
+      alert('Navegador no soporta compartir. Descargando...');
+      handleDownloadPDF();
+    }
   };
 
   const pieData = [
@@ -50,7 +77,21 @@ const Simulator: React.FC = () => {
 
   return (
     <div>
-      <h2 className="mb-6 text-xl">Simulador de Liquidación</h2>
+      <div className="flex-between mb-4">
+        <button className="btn-icon" onClick={() => onNavigate('dashboard')}>
+          <ArrowLeft size={24} />
+        </button>
+        <h2 className="text-xl m-0">Liquidación Detallada</h2>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button onClick={handleSharePDF} className="btn-icon" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--accent-blue)' }} title="Compartir">
+            <Share2 size={18} />
+          </button>
+          <button onClick={handleDownloadPDF} className="btn-icon" style={{ background: 'var(--accent-blue)', border: 'none', color: 'white' }} title="Descargar">
+            <Download size={18} />
+          </button>
+        </div>
+      </div>
+      
       <p className="text-sm text-secondary mb-4">Esta simulación estima tu pago exacto para <b>{formattedMonth}</b> basándose en tus registros y parámetros predefinidos.</p>
 
       <div className="glass-card mb-6 text-center">

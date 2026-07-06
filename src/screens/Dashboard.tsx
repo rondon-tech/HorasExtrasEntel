@@ -2,14 +2,18 @@ import React from 'react';
 import { useAppContext } from '../context/AppContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Download, Share2 } from 'lucide-react';
+import { generatePayrollPDF } from '../utils/payrollPdfGenerator';
 
 interface DashboardProps {
   onNavigate: (tab: string) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
+  const appContextData = useAppContext();
   const {
     currentMonth,
+    setCurrentMonth,
     liquidoAPagar,
     totalExtraPayThisMonth,
     totalExtraHoursThisMonth,
@@ -17,7 +21,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     pureTadDays,
     contingencyDaysThisMonth,
     apoyoTadDays
-  } = useAppContext();
+  } = appContextData;
 
   const formattedMonth = format(currentMonth, 'MMMM yyyy', { locale: es });
 
@@ -25,24 +29,80 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
   };
 
+  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newDate = new Date(currentMonth);
+    newDate.setMonth(Number(e.target.value) - 1);
+    setCurrentMonth(newDate);
+  };
+
+  const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newDate = new Date(currentMonth);
+    newDate.setFullYear(Number(e.target.value));
+    setCurrentMonth(newDate);
+  };
+
+  const handleDownloadPDF = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent opening simulator
+    const doc = generatePayrollPDF(appContextData, currentMonth);
+    doc.save(`Liquidacion_Entel_${format(currentMonth, 'MMM_yyyy')}.pdf`);
+  };
+
+  const handleSharePDF = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const doc = generatePayrollPDF(appContextData, currentMonth);
+    const pdfBlob = doc.output('blob');
+    const file = new File([pdfBlob], `Liquidacion_Entel_${format(currentMonth, 'MMM_yyyy')}.pdf`, { type: 'application/pdf' });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: `Liquidación Entel - ${formattedMonth}`,
+          text: `Adjunto simulación de liquidación para ${formattedMonth}.`,
+          files: [file]
+        });
+      } catch (err) { console.log(err); }
+    } else {
+      alert('Navegador no soporta compartir. Descargando...');
+      handleDownloadPDF(e);
+    }
+  };
+
   return (
     <div>
       <div className="flex-between mb-4">
-        <h2 className="text-xl font-bold" style={{textTransform: 'capitalize'}}>{formattedMonth}</h2>
-        <div className="badge badge-green">Activo</div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <select className="form-control text-sm font-bold" value={currentMonth.getMonth() + 1} onChange={handleMonthChange} style={{ padding: '0.4rem 0.5rem', width: 'auto', textTransform: 'capitalize' }}>
+            {Array.from({length: 12}, (_, i) => i + 1).map(m => (
+              <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString('es', { month: 'long' })}</option>
+            ))}
+          </select>
+          <select className="form-control text-sm font-bold" value={currentMonth.getFullYear()} onChange={handleYearChange} style={{ padding: '0.4rem 0.5rem', width: 'auto' }}>
+            {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <div className="badge badge-green">Recalculado</div>
       </div>
 
       <div 
-        className="glass-card text-center mt-4" 
+        className="glass-card text-center mt-4 relative" 
         style={{ cursor: 'pointer' }}
         onClick={() => onNavigate('simulator')}
       >
-        <p className="text-sm text-secondary uppercase font-bold tracking-wider mb-2">Líquido a Pagar Estimado</p>
+        <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.5rem' }}>
+          <button onClick={handleSharePDF} className="btn-icon" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--accent-blue)', padding: '0.4rem' }} title="Compartir Liquidación">
+            <Share2 size={16} />
+          </button>
+          <button onClick={handleDownloadPDF} className="btn-icon" style={{ background: 'var(--accent-blue)', border: 'none', color: 'white', padding: '0.4rem' }} title="Descargar PDF">
+            <Download size={16} />
+          </button>
+        </div>
+
+        <p className="text-sm text-secondary uppercase font-bold tracking-wider mb-2">Líquido a Pagar ({formattedMonth})</p>
         <h1 className="text-4xl font-bold text-gradient mb-2">
           {formatCurrency(liquidoAPagar)}
         </h1>
         <p className="text-xs text-blue flex-center gap-1 mt-3">
-          Toca aquí para ver gráficos y detalle completo &rarr;
+          Toca aquí para ver detalle completo &rarr;
         </p>
       </div>
 

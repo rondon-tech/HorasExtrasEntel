@@ -56,7 +56,7 @@ function App() {
       case 'records':
         return <RecordsList onEditRecord={handleEditRecord} onEditExpense={handleEditExpense} />;
       case 'simulator':
-        return <Simulator />;
+        return <Simulator onNavigate={setActiveTab} />;
       case 'history':
         return <History />;
       default:
