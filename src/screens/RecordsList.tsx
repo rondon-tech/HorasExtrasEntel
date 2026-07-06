@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Download, Share2 } from 'lucide-react';
+import { generateRecordsPDF } from '../utils/pdfGenerator';
 
 interface RecordsListProps {
   onEditRecord: (id: string) => void;
@@ -80,9 +82,48 @@ const RecordsList: React.FC<RecordsListProps> = ({ onEditRecord, onEditExpense }
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
   };
 
+  const handleDownloadPDF = () => {
+    const monthName = new Date(2000, selectedMonth - 1).toLocaleString('es', { month: 'long' });
+    const doc = generateRecordsPDF(sortedItems, monthName, selectedYear, totalItems, totalExtraHours, totalExpenses);
+    doc.save(`Reporte_Horas_Extras_${monthName}_${selectedYear}.pdf`);
+  };
+
+  const handleSharePDF = async () => {
+    const monthName = new Date(2000, selectedMonth - 1).toLocaleString('es', { month: 'long' });
+    const doc = generateRecordsPDF(sortedItems, monthName, selectedYear, totalItems, totalExtraHours, totalExpenses);
+    
+    const pdfBlob = doc.output('blob');
+    const file = new File([pdfBlob], `Reporte_Horas_Extras_${monthName}_${selectedYear}.pdf`, { type: 'application/pdf' });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: `Reporte Entel - ${monthName} ${selectedYear}`,
+          text: `Adjunto el reporte de horas extras y viáticos filtrado (${totalItems} registros).`,
+          files: [file]
+        });
+      } catch (err) {
+        console.log('Error al compartir:', err);
+      }
+    } else {
+      alert('Tu navegador no soporta compartir archivos nativamente. Se descargará el PDF en su lugar.');
+      handleDownloadPDF();
+    }
+  };
+
   return (
     <div>
-      <h2 className="mb-2 text-xl">Auditoría Avanzada</h2>
+      <div className="flex-between mb-2">
+        <h2 className="text-xl m-0">Auditoría Avanzada</h2>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button onClick={handleSharePDF} className="btn-icon" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--accent-blue)' }} title="Compartir">
+            <Share2 size={18} />
+          </button>
+          <button onClick={handleDownloadPDF} className="btn-icon" style={{ background: 'var(--accent-blue)', border: 'none', color: 'white' }} title="Descargar PDF">
+            <Download size={18} />
+          </button>
+        </div>
+      </div>
       <p className="text-sm text-secondary mb-6">Busca, filtra y analiza tus registros históricos detalladamente.</p>
 
       <div className="filter-section">
