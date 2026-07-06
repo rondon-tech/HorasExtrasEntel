@@ -21,7 +21,12 @@ const Login: React.FC = () => {
         login(response.data.token);
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al iniciar sesión');
+      const apiError = err.response?.data?.error;
+      const errorMessage = typeof apiError === 'object' && apiError !== null 
+        ? (apiError.message || JSON.stringify(apiError))
+        : (apiError || 'Error al iniciar sesión');
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
