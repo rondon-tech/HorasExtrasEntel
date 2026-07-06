@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isToday, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Download, Share2 } from 'lucide-react';
 import { generateRecordsPDF } from '../utils/pdfGenerator';
@@ -16,6 +16,7 @@ const RecordsList: React.FC<RecordsListProps> = ({ onEditRecord, onEditExpense }
   const currentDate = new Date();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'record' | 'expense' | 'feriado' | 'tap' | 'contingencia'>('all');
+  const [timeFilter, setTimeFilter] = useState<'month' | 'today' | 'week'>('month');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'hours'>('newest');
   const [selectedMonth, setSelectedMonth] = useState<number>(currentDate.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(currentDate.getFullYear());
@@ -25,8 +26,20 @@ const RecordsList: React.FC<RecordsListProps> = ({ onEditRecord, onEditExpense }
     ...expenses.map(e => ({ ...e, type: 'expense' as const }))
   ];
 
-  // 1. Filter by Month/Year
+  // 1. Filter by Time (Month, Today, Week)
   const timeFiltered = allItems.filter(item => {
+    const itemDate = parseISO(item.date);
+    
+    if (timeFilter === 'today') {
+      return isToday(itemDate);
+    } 
+    if (timeFilter === 'week') {
+      const start = startOfWeek(currentDate, { weekStartsOn: 1 }); // Monday start
+      const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+      return isWithinInterval(itemDate, { start, end });
+    }
+    
+    // Default: 'month'
     const [year, month] = item.date.split('-');
     return Number(year) === selectedYear && Number(month) === selectedMonth;
   });
@@ -83,22 +96,30 @@ const RecordsList: React.FC<RecordsListProps> = ({ onEditRecord, onEditExpense }
   };
 
   const handleDownloadPDF = () => {
-    const monthName = new Date(2000, selectedMonth - 1).toLocaleString('es', { month: 'long' });
-    const doc = generateRecordsPDF(sortedItems, monthName, selectedYear, totalItems, totalExtraHours, totalExpenses);
-    doc.save(`Reporte_Horas_Extras_${monthName}_${selectedYear}.pdf`);
+    let periodName = '';
+    if (timeFilter === 'today') periodName = 'de Hoy';
+    else if (timeFilter === 'week') periodName = 'de Esta Semana';
+    else periodName = new Date(2000, selectedMonth - 1).toLocaleString('es', { month: 'long' });
+
+    const doc = generateRecordsPDF(sortedItems, periodName, selectedYear, totalItems, totalExtraHours, totalExpenses);
+    doc.save(`Reporte_Entel_${periodName.replace(/ /g, '_')}_${selectedYear}.pdf`);
   };
 
   const handleSharePDF = async () => {
-    const monthName = new Date(2000, selectedMonth - 1).toLocaleString('es', { month: 'long' });
-    const doc = generateRecordsPDF(sortedItems, monthName, selectedYear, totalItems, totalExtraHours, totalExpenses);
+    let periodName = '';
+    if (timeFilter === 'today') periodName = 'de Hoy';
+    else if (timeFilter === 'week') periodName = 'de Esta Semana';
+    else periodName = new Date(2000, selectedMonth - 1).toLocaleString('es', { month: 'long' });
+
+    const doc = generateRecordsPDF(sortedItems, periodName, selectedYear, totalItems, totalExtraHours, totalExpenses);
     
     const pdfBlob = doc.output('blob');
-    const file = new File([pdfBlob], `Reporte_Horas_Extras_${monthName}_${selectedYear}.pdf`, { type: 'application/pdf' });
+    const file = new File([pdfBlob], `Reporte_Entel_${periodName.replace(/ /g, '_')}_${selectedYear}.pdf`, { type: 'application/pdf' });
 
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({
-          title: `Reporte Entel - ${monthName} ${selectedYear}`,
+          title: `Reporte Entel - ${periodName} ${selectedYear}`,
           text: `Adjunto el reporte de horas extras y viáticos filtrado (${totalItems} registros).`,
           files: [file]
         });
@@ -136,18 +157,28 @@ const RecordsList: React.FC<RecordsListProps> = ({ onEditRecord, onEditExpense }
         />
 
         <div className="flex-between">
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <select className="form-control text-sm" value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} style={{ padding: '0.4rem 0.75rem' }}>
-              {Array.from({length: 12}, (_, i) => i + 1).map(m => (
-                <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString('es', { month: 'long' })}</option>
-              ))}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <select className="form-control text-sm" value={timeFilter} onChange={e => setTimeFilter(e.target.value as any)} style={{ padding: '0.4rem 0.75rem', fontWeight: 'bold', color: 'var(--accent-blue)' }}>
+              <option value="month">Por Mes</option>
+              <option value="today">Día de Hoy</option>
+              <option value="week">Esta Semana</option>
             </select>
-            <select className="form-control text-sm" value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '0.4rem 0.75rem' }}>
-              {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+
+            {timeFilter === 'month' && (
+              <>
+                <select className="form-control text-sm" value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} style={{ padding: '0.4rem 0.75rem' }}>
+                  {Array.from({length: 12}, (_, i) => i + 1).map(m => (
+                    <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString('es', { month: 'long' })}</option>
+                  ))}
+                </select>
+                <select className="form-control text-sm" value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '0.4rem 0.75rem' }}>
+                  {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </>
+            )}
           </div>
           
-          <select className="form-control text-sm" value={sortBy} onChange={e => setSortBy(e.target.value as any)} style={{ padding: '0.4rem 0.75rem' }}>
+          <select className="form-control text-sm" value={sortBy} onChange={e => setSortBy(e.target.value as any)} style={{ padding: '0.4rem 0.75rem', maxWidth: '140px' }}>
             <option value="newest">Más recientes</option>
             <option value="oldest">Más antiguos</option>
             <option value="hours">Más horas extras</option>
