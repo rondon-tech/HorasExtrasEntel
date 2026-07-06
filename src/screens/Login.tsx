@@ -33,45 +33,47 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-      <div className="card" style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2rem' }}>
-          <div style={{ background: 'var(--accent)', color: 'white', padding: '1rem', borderRadius: '50%', marginBottom: '1rem' }}>
-            <Lock size={24} />
+    <div className="flex-center" style={{ minHeight: '80vh', padding: '1rem' }}>
+      <div className="glass-card" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem 2rem' }}>
+        <div className="flex-center" style={{ flexDirection: 'column', marginBottom: '2.5rem' }}>
+          <div style={{ background: 'rgba(0, 102, 255, 0.1)', color: 'var(--accent-blue)', padding: '1rem', borderRadius: '50%', marginBottom: '1.25rem' }}>
+            <Lock size={28} />
           </div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Iniciar Sesión</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Plataforma Horas Extras Entel</p>
+          <h2 className="text-2xl font-bold mb-1">Entel Horas Extras</h2>
+          <p className="text-sm text-secondary">Acceso a la plataforma de gestión</p>
         </div>
 
         {error && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '0.75rem', borderRadius: '0.5rem', marginBottom: '1rem', textAlign: 'center', fontSize: '0.875rem' }}>
+          <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-red)', padding: '0.75rem', borderRadius: '0.5rem', marginBottom: '1.5rem', textAlign: 'center', fontSize: '0.875rem', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Usuario</label>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Usuario</label>
             <input 
               type="text" 
-              className="input-field" 
+              className="form-control" 
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              placeholder="Ej: admin"
               required
             />
           </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Contraseña</label>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Contraseña</label>
             <input 
               type="password" 
-              className="input-field" 
+              className="form-control" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
               required
             />
           </div>
-          <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '1rem', justifyContent: 'center' }}>
-            {loading ? 'Verificando...' : 'Entrar al Sistema'}
+          <button type="submit" className="btn btn-primary btn-block" disabled={loading} style={{ marginTop: '1rem' }}>
+            {loading ? 'Verificando...' : 'Ingresar al Sistema'}
           </button>
         </form>
       </div>
