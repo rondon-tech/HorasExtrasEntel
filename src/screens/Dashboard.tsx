@@ -4,12 +4,15 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Download, Share2 } from 'lucide-react';
 import { generatePayrollPDF } from '../utils/payrollPdfGenerator';
+import QuickAddModal from '../components/QuickAddModal';
 
 interface DashboardProps {
   onNavigate: (tab: string) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
+  const [quickAddType, setQuickAddType] = React.useState<'TAD' | 'Contingencia' | null>(null);
+  
   const appContextData = useAppContext();
   const {
     currentMonth,
@@ -119,16 +122,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <p className="text-xs text-muted mt-1">Por feriados/domingos</p>
         </div>
         
-        <div className="stat-box mt-2">
+        <div className="stat-box mt-2" style={{ cursor: 'pointer', border: '1px solid rgba(16, 185, 129, 0.2)' }} onClick={() => setQuickAddType('TAD')}>
           <p className="text-xs text-secondary">Días TAP Trabajados</p>
           <p className="stat-value text-green">{pureTadDays}</p>
-          <p className="text-xs text-muted mt-1">Total del mes</p>
+          <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>+ Ingresar Disposición</p>
         </div>
 
-        <div className="stat-box mt-2">
+        <div className="stat-box mt-2" style={{ cursor: 'pointer', border: '1px solid rgba(168, 85, 247, 0.2)' }} onClick={() => setQuickAddType('Contingencia')}>
           <p className="text-xs text-secondary">Días Contingencia</p>
           <p className="stat-value text-purple">{contingencyDaysThisMonth}</p>
-          <p className="text-xs text-muted mt-1">Total del mes</p>
+          <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>+ Ingresar Disposición</p>
         </div>
 
         <div className="stat-box mt-2" style={{ gridColumn: 'span 2' }}>
@@ -152,6 +155,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           Auditar Registros del Mes
         </button>
       </div>
+
+      <QuickAddModal 
+        isOpen={quickAddType !== null} 
+        onClose={() => setQuickAddType(null)} 
+        type={quickAddType || 'TAD'} 
+      />
     </div>
   );
 };
