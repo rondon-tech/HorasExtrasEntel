@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
 import { apiClient } from '../api/client';
 import { useAuth } from './AuthContext';
 
