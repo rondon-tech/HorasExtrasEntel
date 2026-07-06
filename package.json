@@ -8,7 +8,8 @@
     "server": "node api/index.js",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",
