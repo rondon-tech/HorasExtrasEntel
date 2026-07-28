@@ -11,7 +11,7 @@ export const calculatePayroll = (records, expenses, params) => {
   // D. Cálculo de Horas Extras según Código de Trabajo (y liquidación Entel)
   const baseParaHorasExtras = baseSalary.add(incentivoProduccion);
   // (base + incentivo) / 120 gives the hourly rate for extra hours
-  const extraHourRate = baseParaHorasExtras.amount / 120; 
+  const extraHourRate = Math.round(baseParaHorasExtras.amount / 120);
   
   const totalExtraHoursThisMonth = records.reduce((acc, r) => acc + Number(r.extra_hours), 0);
   const totalExtraPayThisMonth = new Money(Math.round(totalExtraHoursThisMonth * extraHourRate));
@@ -88,7 +88,7 @@ export const calculatePayroll = (records, expenses, params) => {
   return {
     totalSueldoBase: totalSueldoBase.amount,
     totalExtraHoursThisMonth,
-    extraHourRate: Math.round(extraHourRate),
+    extraHourRate,
     totalExtraPayThisMonth: totalExtraPayThisMonth.amount,
     totalExpensesThisMonth: totalExpensesThisMonth.amount,
     tadDaysThisMonth,

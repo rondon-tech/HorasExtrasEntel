@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Download, Share2 } from 'lucide-react';
 import { generateRecordsPDF } from '../utils/pdfGenerator';
+import { formatCLP } from '../utils/format';
 
-interface RecordsListProps {
-  onEditRecord: (id: string) => void;
-  onEditExpense: (id: string) => void;
-}
-
-const RecordsList: React.FC<RecordsListProps> = ({ onEditRecord, onEditExpense }) => {
+const RecordsList: React.FC = () => {
+  const navigate = useNavigate();
   const { records, expenses, deleteRecord, deleteExpense, params } = useAppContext();
   
   const currentDate = new Date();
@@ -80,10 +78,6 @@ const RecordsList: React.FC<RecordsListProps> = ({ onEditRecord, onEditExpense }
   const totalItems = sortedItems.length;
   const totalExtraHours = sortedItems.reduce((acc, item) => item.type === 'record' ? acc + item.extraHours : acc, 0);
   const totalExpenses = sortedItems.reduce((acc, item) => item.type === 'expense' ? acc + 1 : acc, 0);
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
-  };
 
   const getPeriodName = () => {
     if (startDate === endDate) return format(parseISO(startDate), "dd 'de' MMM", { locale: es });
@@ -214,13 +208,13 @@ const RecordsList: React.FC<RecordsListProps> = ({ onEditRecord, onEditExpense }
                   </div>
                 ) : (
                   <div className="mt-2 text-xs text-green">
-                    Valor: {formatCurrency(params.viaticoRate)}
+                    Valor: {formatCLP(params.viaticoRate)}
                   </div>
                 )}
 
                 <div className="flex-between mt-3 pt-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
                   <button 
-                    onClick={() => isRecord ? onEditRecord(item.id) : onEditExpense(item.id)}
+                      onClick={() => isRecord ? navigate(`/record/${item.id}`) : navigate(`/expenses/${item.id}`)}
                     className="btn-icon text-sm text-blue bg-transparent border-none"
                     style={{ cursor: 'pointer' }}
                   >

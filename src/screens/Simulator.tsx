@@ -1,12 +1,15 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Download, Share2 } from 'lucide-react';
-import { generatePayrollPDF } from '../utils/payrollPdfGenerator';
+import { usePayrollPDF } from '../hooks/usePayrollPDF';
+import { formatCLP } from '../utils/format';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 
-const Simulator: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNavigate = () => {} }) => {
+const Simulator: React.FC = () => {
+  const navigate = useNavigate();
   const appContextData = useAppContext();
   const {
     currentMonth,
@@ -25,36 +28,9 @@ const Simulator: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNaviga
     montoCesantia,
     params
   } = appContextData;
+  const { download: downloadPDF, share: sharePDF } = usePayrollPDF(appContextData, currentMonth);
 
   const formattedMonth = format(currentMonth, 'MMMM yyyy', { locale: es });
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value || 0);
-  };
-
-  const handleDownloadPDF = () => {
-    const doc = generatePayrollPDF(appContextData, currentMonth);
-    doc.save(`Liquidacion_Entel_${format(currentMonth, 'MMM_yyyy')}.pdf`);
-  };
-
-  const handleSharePDF = async () => {
-    const doc = generatePayrollPDF(appContextData, currentMonth);
-    const pdfBlob = doc.output('blob');
-    const file = new File([pdfBlob], `Liquidacion_Entel_${format(currentMonth, 'MMM_yyyy')}.pdf`, { type: 'application/pdf' });
-
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          title: `Liquidación Entel - ${format(currentMonth, 'MMMM yyyy', { locale: es })}`,
-          text: 'Adjunto detalle de la simulación de liquidación.',
-          files: [file]
-        });
-      } catch (err) { console.log(err); }
-    } else {
-      alert('Navegador no soporta compartir. Descargando...');
-      handleDownloadPDF();
-    }
-  };
 
   const pieData = [
     { name: 'Sueldo Base (Fijo)', value: totalSueldoBase, color: '#0066ff' },
@@ -78,15 +54,15 @@ const Simulator: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNaviga
   return (
     <div>
       <div className="flex-between mb-4">
-        <button className="btn-icon" onClick={() => onNavigate('dashboard')}>
+          <button className="btn-icon" onClick={() => navigate('/')}>
           <ArrowLeft size={24} />
         </button>
         <h2 className="text-xl m-0">Liquidación Detallada</h2>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={handleSharePDF} className="btn-icon" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--accent-blue)' }} title="Compartir">
+          <button onClick={sharePDF} className="btn-icon" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--accent-blue)' }} title="Compartir">
             <Share2 size={18} />
           </button>
-          <button onClick={handleDownloadPDF} className="btn-icon" style={{ background: 'var(--accent-blue)', border: 'none', color: 'white' }} title="Descargar">
+          <button onClick={downloadPDF} className="btn-icon" style={{ background: 'var(--accent-blue)', border: 'none', color: 'white' }} title="Descargar">
             <Download size={18} />
           </button>
         </div>
@@ -97,7 +73,7 @@ const Simulator: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNaviga
       <div className="glass-card mb-6 text-center">
         <p className="text-sm text-secondary uppercase font-bold tracking-wider mb-2">Líquido a Pagar Estimado</p>
         <h1 className="text-4xl font-bold text-gradient mb-2">
-          {formatCurrency(liquidoAPagar)}
+          {formatCLP(liquidoAPagar)}
         </h1>
       </div>
 
@@ -119,7 +95,7 @@ const Simulator: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNaviga
                   ))}
                 </Pie>
                 <Tooltip 
-                formatter={(value: any) => formatCurrency(value as number)}
+                formatter={(value: any) => formatCLP(value as number)}
                 labelStyle={{ color: '#000' }}
               />
               </PieChart>
@@ -132,7 +108,7 @@ const Simulator: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNaviga
                   <div style={{width: 8, height: 8, borderRadius: '50%', backgroundColor: d.color}}></div>
                   {d.name}
                 </span>
-                <span className="font-bold">{formatCurrency(d.value)}</span>
+                <span className="font-bold">{formatCLP(d.value)}</span>
               </div>
             ))}
           </div>
@@ -146,7 +122,7 @@ const Simulator: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNaviga
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={10} />
                 <YAxis stroke="var(--text-secondary)" fontSize={10} tickFormatter={(val) => `$${val/1000}k`} />
-                <Tooltip formatter={(value: any) => formatCurrency(value as number)} />
+                <Tooltip formatter={(value: any) => formatCLP(value as number)} />
                 <Legend iconSize={8} wrapperStyle={{ fontSize: '10px' }} />
                 <Bar dataKey="Ingresos" fill="#10b981" radius={[2, 2, 0, 0]} />
                 <Bar dataKey="Descuentos" fill="#ef4444" radius={[2, 2, 0, 0]} />
@@ -164,91 +140,91 @@ const Simulator: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNaviga
         <h4 className="text-sm font-bold mt-3 mb-2 text-blue">REMUNERACION FIJA</h4>
         <div className="flex-between text-sm mb-1">
           <span>Sueldo Base</span>
-          <span>{formatCurrency(params.baseSalary)}</span>
+          <span>{formatCLP(params.baseSalary)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
           <span>Gratificación fija</span>
-          <span>{formatCurrency(params.gratificacion)}</span>
+          <span>{formatCLP(params.gratificacion)}</span>
         </div>
 
         <h4 className="text-sm font-bold mt-4 mb-2 text-blue">REMUNERACION VARIABLE</h4>
         <div className="flex-between text-sm mb-1">
           <span>Incentivo de Producción</span>
-          <span>{formatCurrency(params.incentivoProduccion)}</span>
+          <span>{formatCLP(params.incentivoProduccion)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
           <span>Bono de Gestión</span>
-          <span>{formatCurrency(totalExpensesThisMonth)}</span>
+          <span>{formatCLP(totalExpensesThisMonth)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
           <span>Bono Compensatorio</span>
-          <span>{formatCurrency(bonoCompensatorio)}</span>
+          <span>{formatCLP(bonoCompensatorio)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
           <span>Horas Extras 50%</span>
-          <span>{formatCurrency(totalExtraPayThisMonth)}</span>
+          <span>{formatCLP(totalExtraPayThisMonth)}</span>
         </div>
 
         <h4 className="text-sm font-bold mt-4 mb-2 text-blue">REMUNERACIÓN EXENTA</h4>
         <div className="flex-between text-sm mb-1">
           <span>Asignación Alimentación</span>
-          <span>{formatCurrency(params.asignacionAlimentacion)}</span>
+          <span>{formatCLP(params.asignacionAlimentacion)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
           <span>Desgaste de herramientas</span>
-          <span>{formatCurrency(params.desgasteHerramientas)}</span>
+          <span>{formatCLP(params.desgasteHerramientas)}</span>
         </div>
 
         <div className="flex-between font-bold text-sm mt-3 border-t pt-2" style={{ borderColor: 'var(--border-color)' }}>
           <span>TOTAL HABERES</span>
-          <span>{formatCurrency(totalHaberes)}</span>
+          <span>{formatCLP(totalHaberes)}</span>
         </div>
         <div className="flex-between text-xs text-secondary mt-1">
-          <span>Total Imponible: {formatCurrency(totalHaberesImponibles)}</span>
-          <span>Total Tributable: {formatCurrency(totalHaberesImponibles - totalDescuentosLegales)}</span>
+          <span>Total Imponible: {formatCLP(totalHaberesImponibles)}</span>
+          <span>Total Tributable: {formatCLP(totalHaberesImponibles - totalDescuentosLegales)}</span>
         </div>
 
         {/* DESCUENTOS */}
         <h4 className="text-sm font-bold mt-5 mb-2 text-orange">DESCUENTOS LEGALES</h4>
         <div className="flex-between text-sm mb-1">
           <span>AFP ({params.afpRate}%)</span>
-          <span className="text-danger">-{formatCurrency(montoAFP)}</span>
+          <span className="text-danger">-{formatCLP(montoAFP)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
           <span>Salud ({params.saludRate}%)</span>
-          <span className="text-danger">-{formatCurrency(montoSalud)}</span>
+          <span className="text-danger">-{formatCLP(montoSalud)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
           <span>Seguro Cesantía ({params.cesantiaRate}%)</span>
-          <span className="text-danger">-{formatCurrency(montoCesantia)}</span>
+          <span className="text-danger">-{formatCLP(montoCesantia)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
           <span>Impuesto Único (Renta)</span>
-          <span className="text-danger">-{formatCurrency(impuestoUnico)}</span>
+          <span className="text-danger">-{formatCLP(impuestoUnico)}</span>
         </div>
         
         <h4 className="text-sm font-bold mt-4 mb-2 text-orange">DESCUENTOS VARIOS</h4>
         <div className="flex-between text-sm mb-1">
           <span>Préstamo Especial</span>
-          <span className="text-danger">-{formatCurrency(params.prestamo)}</span>
+          <span className="text-danger">-{formatCLP(params.prestamo)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
           <span>Cuota Manual Sindicato</span>
-          <span className="text-danger">-{formatCurrency(params.cuotaSindicato)}</span>
+          <span className="text-danger">-{formatCLP(params.cuotaSindicato)}</span>
         </div>
         <div className="flex-between text-sm mb-1">
           <span>Otros Descuentos</span>
-          <span className="text-danger">-{formatCurrency(params.otrosDescuentos)}</span>
+          <span className="text-danger">-{formatCLP(params.otrosDescuentos)}</span>
         </div>
         
         <div className="flex-between font-bold text-sm mt-3 border-t pt-2" style={{ borderColor: 'var(--border-color)' }}>
           <span>TOTAL DESCUENTOS</span>
-          <span className="text-danger">-{formatCurrency(totalDescuentos)}</span>
+          <span className="text-danger">-{formatCLP(totalDescuentos)}</span>
         </div>
         
         <div className="flex-between font-bold text-xl mt-5 border-t pt-4 text-green" style={{ borderColor: 'var(--border-color)' }}>
           <span>LÍQUIDO A PAGAR</span>
-          <span>{formatCurrency(liquidoAPagar)}</span>
+          <span>{formatCLP(liquidoAPagar)}</span>
         </div>
       </div>
     </div>

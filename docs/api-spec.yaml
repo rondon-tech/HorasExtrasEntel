@@ -1,0 +1,378 @@
+openapi: "3.1.0"
+info:
+  title: Entel Horas Extras API
+  description: |
+    API REST para el registro de horas extras, viáticos y cálculo de liquidaciones
+    de sueldo para técnicos de Entel Chile.
+  version: "1.0.0"
+  contact:
+    name: Ablutech
+
+servers:
+  - url: http://localhost:3001/api
+    description: Desarrollo local
+  - url: https://horas-extras.vercel.app/api
+    description: Producción (Vercel)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /login:
+    post:
+      summary: Iniciar sesión
+      description: Autentica al usuario y devuelve un token JWT.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        "401":
+          description: Credenciales inválidas
+        "429":
+          description: Demasiados intentos (rate limit)
+
+  /params:
+    get:
+      summary: Obtener parámetros de cálculo
+      responses:
+        "200":
+          description: Parámetros actuales
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Params"
+    put:
+      summary: Actualizar parámetros de cálculo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Params"
+      responses:
+        "200":
+          description: Parámetros actualizados
+
+  /records:
+    get:
+      summary: Listar registros de horas extras
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Lista paginada de registros
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Record"
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+    post:
+      summary: Crear registro de horas extras
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordInput"
+      responses:
+        "200":
+          description: Registro creado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+
+  /records/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      summary: Actualizar registro
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordInput"
+      responses:
+        "200":
+          description: Registro actualizado
+    delete:
+      summary: Eliminar registro
+      responses:
+        "200":
+          description: Registro eliminado
+
+  /expenses:
+    get:
+      summary: Listar viáticos
+      responses:
+        "200":
+          description: Lista de viáticos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Expense"
+    post:
+      summary: Registrar viático
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseInput"
+      responses:
+        "200":
+          description: Viático creado
+
+  /expenses/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      summary: Actualizar viático
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseInput"
+      responses:
+        "200":
+          description: Viático actualizado
+    delete:
+      summary: Eliminar viático
+      responses:
+        "200":
+          description: Viático eliminado
+
+  /payroll/{year}/{month}:
+    parameters:
+      - name: year
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: month
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Calcular liquidación del mes
+      responses:
+        "200":
+          description: Resumen de liquidación
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollSummary"
+
+  /health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: Servicio saludable
+        "503":
+          description: Servicio no disponible
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Record:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        dayType:
+          type: string
+          enum: [Normal, TAD, "TAD Apoyo"]
+        isFeriado:
+          type: boolean
+        isContingencia:
+          type: boolean
+        startTime:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+        endTime:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+        sitio:
+          type: string
+        numeroTarea:
+          type: string
+        tarea:
+          type: string
+        extraHours:
+          type: number
+
+    RecordInput:
+      type: object
+      required: [date, dayType, startTime, endTime, sitio, tarea, extraHours]
+      properties:
+        date:
+          type: string
+          format: date
+        dayType:
+          type: string
+          enum: [Normal, TAD, "TAD Apoyo"]
+        isFeriado:
+          type: boolean
+        isContingencia:
+          type: boolean
+        startTime:
+          type: string
+        endTime:
+          type: string
+        sitio:
+          type: string
+        numeroTarea:
+          type: string
+        tarea:
+          type: string
+        extraHours:
+          type: number
+
+    Expense:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        nemonico:
+          type: string
+        description:
+          type: string
+
+    ExpenseInput:
+      type: object
+      required: [date, nemonico, description]
+      properties:
+        date:
+          type: string
+          format: date
+        nemonico:
+          type: string
+        description:
+          type: string
+
+    Params:
+      type: object
+      properties:
+        baseSalary:
+          type: integer
+        gratificacion:
+          type: integer
+        incentivoProduccion:
+          type: integer
+        weeklyHours:
+          type: integer
+        tadRate:
+          type: integer
+        contingencyRate:
+          type: integer
+        viaticoRate:
+          type: integer
+        afpRate:
+          type: number
+        saludRate:
+          type: number
+        cesantiaRate:
+          type: number
+        asignacionAlimentacion:
+          type: integer
+        desgasteHerramientas:
+          type: integer
+        cuotaSindicato:
+          type: integer
+        prestamo:
+          type: integer
+        otrosDescuentos:
+          type: integer
+
+    PayrollSummary:
+      type: object
+      properties:
+        liquidoAPagar:
+          type: integer
+          description: Monto líquido a pagar en CLP
+        totalHaberesImponibles:
+          type: integer
+        totalDescuentosLegales:
+          type: integer
+        impuestoUnico:
+          type: integer
+        totalExtraHoursThisMonth:
+          type: number
+        totalExtraPayThisMonth:
+          type: integer
+        bonoCompensatorio:
+          type: integer
+        totalExpensesThisMonth:
+          type: integer

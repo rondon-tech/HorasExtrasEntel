@@ -1,43 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAppContext } from '../context/AppContext';
 import { format } from 'date-fns';
+import { TAREAS_OPTIONS, TAREA_PLACEHOLDER, NEMONICOS } from '../constants/tasks';
+import { formatCLP } from '../utils/format';
 
-const tareasOptions = [
-  "Seleccione Descripcion ...",
-  "Calidad / Mediciones / Survey",
-  "Capacitación / Acreditación",
-  "Fiscalización",
-  "Incidencia en Sitio",
-  "Instalación Menor / Apoyo en Antenas",
-  "Logística: Cambio de Camioneta / Trámites Administrativos",
-  "Logística: Gestión de BIN / VIN / Bidones",
-  "Logística: Gestión de Llaves",
-  "Logística: Retiro / Devolución de Repuestos y Equipos",
-  "Mantenimiento Correctivo Clima",
-  "Mantenimiento Correctivo DX",
-  "Mantenimiento Correctivo Energía",
-  "Mantenimiento Correctivo RAN",
-  "Mantenimiento Correctivo TX",
-  "Mantenimiento Preventivo GGEE",
-  "Mantenimiento Proactivo / Preventivo",
-  "Recarga de Combustible",
-  "Respaldo con GGEE",
-  "Traslado a Domicilio"
-];
-
-interface Props {
-  editingId?: string | null;
-  onSave?: () => void;
-}
-
-const Expenses: React.FC<Props> = ({ editingId, onSave }) => {
+const Expenses: React.FC = () => {
+  const { id: editingId } = useParams<{ id?: string }>();
+  const navigate = useNavigate();
   const { expenses, params, addExpense, editExpense } = useAppContext();
   
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [nemonico, setNemonico] = useState('SA575');
-  const [description, setDescription] = useState(tareasOptions[0]);
+  const [description, setDescription] = useState<string>(TAREA_PLACEHOLDER);
 
-  const nemónicos = ['SA575', 'FN699', 'SA881', 'Otro'];
+  const nemónicos = NEMONICOS.map(n => n); // keep local array ref for select
 
   useEffect(() => {
     if (editingId) {
@@ -52,8 +30,8 @@ const Expenses: React.FC<Props> = ({ editingId, onSave }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (description === tareasOptions[0]) {
-      alert('Por favor, seleccione una descripción de tarea válida.');
+    if (description === TAREA_PLACEHOLDER) {
+      toast.error('Por favor, seleccione una descripción de tarea válida.');
       return;
     }
     
@@ -65,17 +43,13 @@ const Expenses: React.FC<Props> = ({ editingId, onSave }) => {
 
     if (editingId) {
       editExpense(editingId, expenseData);
-      alert('Viático actualizado');
-      if (onSave) onSave();
+      toast.success('Viático actualizado');
+      navigate('/records');
     } else {
       addExpense(expenseData);
-      alert('Viático guardado');
-      setDescription(tareasOptions[0]);
+      toast.success('Viático guardado');
+      setDescription(TAREA_PLACEHOLDER);
     }
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
   };
 
   return (
@@ -114,14 +88,14 @@ const Expenses: React.FC<Props> = ({ editingId, onSave }) => {
             onChange={e => setDescription(e.target.value)}
             required
           >
-            {tareasOptions.map(t => <option key={t} value={t}>{t}</option>)}
+            {TAREAS_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
 
         <div className="mt-4 mb-4 p-3 rounded-md" style={{ backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)' }}>
           <div className="flex-between">
             <span className="text-sm text-secondary">Valor automático por este viático:</span>
-            <span className="font-bold text-green">{formatCurrency(params.viaticoRate)}</span>
+            <span className="font-bold text-green">{formatCLP(params.viaticoRate)}</span>
           </div>
         </div>
 

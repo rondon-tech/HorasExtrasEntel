@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["ES2023"],
+    "outDir": "./dist-api",
+    "rootDir": ".",
+    "strict": false,
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "allowJs": true,
+    "checkJs": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "types": ["node"]
+  },
+  "include": ["api/**/*.js", "api/**/*.ts", "migrate.mjs"],
+  "exclude": ["api/**/*.test.js", "api/**/*.test.ts"]
+}

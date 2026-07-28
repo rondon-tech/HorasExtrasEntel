@@ -1,8 +1,20 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { apiClient } from '../api/client';
+import React, { createContext, useContext, useState, useMemo, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
+import {
+  useParamsQuery,
+  useRecordsQuery,
+  useExpensesQuery,
+  usePayrollQuery,
+  useCreateRecord,
+  useUpdateRecord,
+  useDeleteRecord,
+  useCreateExpense,
+  useUpdateExpense,
+  useDeleteExpense,
+  useUpdateParams,
+} from '../hooks/useApi';
 
-// --- Types ---
+// --- Types (kept for backward compat) ---
 export type DayType = 'Normal' | 'TAD' | 'TAD Apoyo';
 
 export interface DailyRecord {
@@ -11,8 +23,8 @@ export interface DailyRecord {
   dayType: DayType;
   isFeriado?: boolean;
   isContingencia?: boolean;
-  startTime: string; // HH:mm
-  endTime: string;   // HH:mm
+  startTime: string;
+  endTime: string;
   sitio: string;
   numeroTarea: string;
   tarea: string;
@@ -24,7 +36,7 @@ export interface ExpenseRecord {
   id: string;
   date: string;
   nemonico: string;
-  description: string; // Tarea
+  description: string;
 }
 
 export interface MonthlyParams {
@@ -32,9 +44,9 @@ export interface MonthlyParams {
   gratificacion: number;
   incentivoProduccion: number;
   weeklyHours: number;
-  tadRate: number; // Bono por día TAD ($9.800)
-  contingencyRate: number; // Bono por Contingencia ($9.800)
-  viaticoRate: number; // Monto por cada viático (Bono Gestión)
+  tadRate: number;
+  contingencyRate: number;
+  viaticoRate: number;
   afpRate: number;
   saludRate: number;
   cesantiaRate: number;
@@ -45,18 +57,14 @@ export interface MonthlyParams {
   otrosDescuentos: number;
 }
 
-
-
-export interface AppState {
+interface AppContextType {
   currentMonth: Date;
+  setCurrentMonth: (date: Date) => void;
+
   records: DailyRecord[];
   expenses: ExpenseRecord[];
   params: MonthlyParams;
-  payrollSummary: any; // Using any for brevity here, should be strictly typed later
-}
 
-interface AppContextType extends AppState {
-  setCurrentMonth: (date: Date) => void;
   addRecord: (record: Omit<DailyRecord, 'id'>) => void;
   editRecord: (id: string, record: Omit<DailyRecord, 'id'>) => void;
   deleteRecord: (id: string) => void;
@@ -64,21 +72,17 @@ interface AppContextType extends AppState {
   editExpense: (id: string, expense: Omit<ExpenseRecord, 'id'>) => void;
   deleteExpense: (id: string) => void;
   updateParams: (params: MonthlyParams) => void;
-  
-  // Computed properties
+
   totalExtraHoursThisMonth: number;
   extraHourRate: number;
   totalExtraPayThisMonth: number;
-  totalExpensesThisMonth: number; // Viáticos (Bono de Gestión)
-  
+  totalExpensesThisMonth: number;
   tadDaysThisMonth: number;
   contingencyDaysThisMonth: number;
-  diasCompensatoriosGanados: number; // Días feriados/domingos trabajados únicos
-  bonoCompensatorio: number; // TAD + Contingencia
+  diasCompensatoriosGanados: number;
+  bonoCompensatorio: number;
   pureTadDays: number;
   apoyoTadDays: number;
-  
-  // Liquidacion specifics
   totalSueldoBase: number;
   totalHaberesImponibles: number;
   totalDescuentosLegales: number;
@@ -87,22 +91,19 @@ interface AppContextType extends AppState {
   totalHaberesExentos: number;
   totalDescuentosVarios: number;
   liquidoAPagar: number;
-  
-  // Detalle Descuentos Legales
   montoAFP: number;
   montoSalud: number;
   montoCesantia: number;
 }
 
-// --- Defaults ---
 const defaultParams: MonthlyParams = {
   baseSalary: 639908,
   gratificacion: 213354,
   incentivoProduccion: 203192,
-  weeklyHours: 44, // 44 o 45 hrs comunes en Chile
-  tadRate: 9800, // Bono TAD
-  contingencyRate: 9800, // Bono Contingencia
-  viaticoRate: 9800, // Monto por viático
+  weeklyHours: 44,
+  tadRate: 9800,
+  contingencyRate: 9800,
+  viaticoRate: 9800,
   afpRate: 11.27,
   saludRate: 7.0,
   cesantiaRate: 0.6,
@@ -110,118 +111,54 @@ const defaultParams: MonthlyParams = {
   desgasteHerramientas: 20000,
   cuotaSindicato: 6392,
   prestamo: 10000,
-  otrosDescuentos: 0
-};
-
-const initialState: AppState = {
-  currentMonth: new Date(),
-  records: [],
-  expenses: [],
-  params: defaultParams,
-  payrollSummary: {}
+  otrosDescuentos: 0,
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// --- Provider Component ---
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
-  const [state, setState] = useState<AppState>(initialState);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Fetch initial data from backend
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!isAuthenticated) return;
-      try {
-        const year = state.currentMonth.getFullYear();
-        const month = state.currentMonth.getMonth() + 1; // JS months are 0-indexed, API expects 1-indexed
+  // React Query hooks — manage server state, cache, and invalidation automatically
+  const paramsQuery = useParamsQuery();
+  const recordsQuery = useRecordsQuery();
+  const expensesQuery = useExpensesQuery();
 
-        const [paramsRes, recordsRes, expensesRes, payrollRes] = await Promise.all([
-          apiClient.get('/params'),
-          apiClient.get('/records'),
-          apiClient.get('/expenses'),
-          apiClient.get(`/payroll/${year}/${month}`)
-        ]);
-        
-        setState(s => ({
-          ...s,
-          params: paramsRes.data,
-          records: recordsRes.data,
-          expenses: expensesRes.data,
-          payrollSummary: payrollRes.data
-        }));
-      } catch (err) {
-        console.error('Error fetching data from API:', err);
-      }
-    };
-    fetchData();
-  }, [isAuthenticated, state.currentMonth]);
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth() + 1;
+  const payrollQuery = usePayrollQuery(year, month);
 
-  const setCurrentMonth = (date: Date) => setState(s => ({ ...s, currentMonth: date }));
-  
-  const addRecord = async (record: Omit<DailyRecord, 'id'>) => {
-    try {
-      const res = await apiClient.post('/records', record);
-      const { id } = res.data;
-      setState(s => ({ ...s, records: [{ ...record, id }, ...s.records] }));
-    } catch (e) { console.error(e); }
-  };
-  
-  const editRecord = async (id: string, record: Omit<DailyRecord, 'id'>) => {
-    try {
-      await apiClient.put(`/records/${id}`, record);
-      setState(s => ({
-        ...s,
-        records: s.records.map(r => r.id === id ? { ...record, id } : r)
-      }));
-    } catch (e) { console.error(e); }
-  };
-  
-  const deleteRecord = async (id: string) => {
-    try {
-      await apiClient.delete(`/records/${id}`);
-      setState(s => ({ ...s, records: s.records.filter(r => r.id !== id) }));
-    } catch (e) { console.error(e); }
-  };
-  
-  const addExpense = async (expense: Omit<ExpenseRecord, 'id'>) => {
-    try {
-      const res = await apiClient.post('/expenses', expense);
-      const { id } = res.data;
-      setState(s => ({ ...s, expenses: [{ ...expense, id }, ...s.expenses] }));
-    } catch (e) { console.error(e); }
-  };
-  
-  const editExpense = async (id: string, expense: Omit<ExpenseRecord, 'id'>) => {
-    try {
-      await apiClient.put(`/expenses/${id}`, expense);
-      setState(s => ({
-        ...s,
-        expenses: s.expenses.map(e => e.id === id ? { ...expense, id } : e)
-      }));
-    } catch (e) { console.error(e); }
-  };
-  
-  const deleteExpense = async (id: string) => {
-    try {
-      await apiClient.delete(`/expenses/${id}`);
-      setState(s => ({ ...s, expenses: s.expenses.filter(e => e.id !== id) }));
-    } catch (e) { console.error(e); }
-  };
+  const createRecord = useCreateRecord();
+  const updateRecord = useUpdateRecord();
+  const removeRecord = useDeleteRecord();
+  const createExpense = useCreateExpense();
+  const updateExpense = useUpdateExpense();
+  const removeExpense = useDeleteExpense();
+  const updateParamsMutation = useUpdateParams();
 
-  const updateParams = async (params: MonthlyParams) => {
-    try {
-      await apiClient.put('/params', params);
-      setState(s => ({ ...s, params }));
-    } catch (e) { console.error(e); }
-  };
+  // Mapper adapters: keep backward-compatible signature with callbacks
+  const addRecord = (record: Omit<DailyRecord, 'id'>) => { createRecord.mutate(record); };
+  const editRecord = (id: string, record: Omit<DailyRecord, 'id'>) => { updateRecord.mutate({ id, ...record }); };
+  const deleteRecord = (id: string) => { removeRecord.mutate(id); };
+  const addExpense = (expense: Omit<ExpenseRecord, 'id'>) => { createExpense.mutate(expense); };
+  const editExpense = (id: string, expense: Omit<ExpenseRecord, 'id'>) => { updateExpense.mutate({ id, ...expense }); };
+  const deleteExpense = (id: string) => { removeExpense.mutate(id); };
+  const updateParams = (params: MonthlyParams) => { updateParamsMutation.mutate(params); };
 
-  // computations are now handled by the backend!
-  const p = state.payrollSummary || {};
+  // When not authenticated, don't run queries and use defaults
+  const records: DailyRecord[] = isAuthenticated ? (recordsQuery.data ?? []) : [];
+  const expenses: ExpenseRecord[] = isAuthenticated ? (expensesQuery.data ?? []) : [];
+  const params: MonthlyParams = isAuthenticated ? (paramsQuery.data ?? defaultParams) : defaultParams;
 
-  const value: AppContextType = {
-    ...state,
+  const p = (isAuthenticated ? payrollQuery.data : {}) || {};
+
+  const value = useMemo<AppContextType>(() => ({
+    currentMonth,
     setCurrentMonth,
+    records,
+    expenses,
+    params,
     addRecord,
     editRecord,
     deleteRecord,
@@ -249,8 +186,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     liquidoAPagar: p.liquidoAPagar || 0,
     montoAFP: p.montoAFP || 0,
     montoSalud: p.montoSalud || 0,
-    montoCesantia: p.montoCesantia || 0
-  };
+    montoCesantia: p.montoCesantia || 0,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [currentMonth, records, expenses, params, p]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

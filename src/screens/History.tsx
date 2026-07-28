@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { format, subMonths, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+import toast from 'react-hot-toast';
 
 const History: React.FC = () => {
   const { currentMonth, setCurrentMonth, params, updateParams, extraHourRate } = useAppContext();
@@ -18,7 +19,7 @@ const History: React.FC = () => {
 
   const handleSaveParams = () => {
     updateParams(localParams);
-    alert('Parámetros actualizados correctamente');
+    toast.success('Parámetros actualizados correctamente');
   };
 
   const formattedMonth = format(currentMonth, 'MMMM yyyy', { locale: es });

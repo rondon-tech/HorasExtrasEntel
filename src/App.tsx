@@ -1,85 +1,73 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Home, CalendarPlus, History as HistoryIcon, Sun, Moon, PieChart, List, LogOut } from 'lucide-react';
-import Dashboard from './screens/Dashboard';
-import DailyRecord from './screens/DailyRecord';
-import Expenses from './screens/Expenses';
-import History from './screens/History';
-import Simulator from './screens/Simulator';
-import RecordsList from './screens/RecordsList';
 import Login from './screens/Login';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { useAuth } from './context/AuthContext';
 
-function App() {
+const Dashboard = lazy(() => import('./screens/Dashboard'));
+const DailyRecord = lazy(() => import('./screens/DailyRecord'));
+const Expenses = lazy(() => import('./screens/Expenses'));
+const History = lazy(() => import('./screens/History'));
+const Simulator = lazy(() => import('./screens/Simulator'));
+const RecordsList = lazy(() => import('./screens/RecordsList'));
+
+// Map URL paths to tab keys (used for bottom-nav active state)
+const pathToTab: Record<string, string> = {
+  '/': 'dashboard',
+  '/record': 'record',
+  '/expenses': 'expenses',
+  '/records': 'records',
+  '/simulator': 'simulator',
+  '/settings': 'history',
+};
+
+function Layout() {
   const { isAuthenticated, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const navigate = useNavigate();
+  const location = useLocation();
   const [theme, setTheme] = useState(() => localStorage.getItem('entel_theme') || 'dark');
-  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
-  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+
+  // Determine active tab from current URL
+  const activeTab = pathToTab[location.pathname] || 'dashboard';
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('entel_theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  };
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
-  const handleEditRecord = (id: string) => {
-    setEditingRecordId(id);
-    setActiveTab('record');
-  };
+  const pages = [
+    { tab: 'dashboard',  path: '/',           icon: Home,          label: 'Inicio',    short: 'dashboard' },
+    { tab: 'records',    path: '/records',    icon: List,          label: 'Registros', short: 'records'   },
+    { tab: 'record',     path: '/record',     icon: CalendarPlus,  label: 'Ingresar',  short: 'record'    },
+    { tab: 'simulator',  path: '/simulator',  icon: PieChart,      label: 'Reporte',   short: 'simulator' },
+    { tab: 'history',    path: '/settings',   icon: HistoryIcon,   label: 'Ajustes',   short: 'history'   },
+  ];
 
-  const handleEditExpense = (id: string) => {
-    setEditingExpenseId(id);
-    setActiveTab('expenses');
-  };
+  const isActive = (tab: string) => activeTab === tab;
+  // "Ingresar" tab is active for both /record and /expenses
+  const isIngresarActive = activeTab === 'record' || activeTab === 'expenses';
 
-  // Clear editing state if navigating away manually
-  useEffect(() => {
-    if (activeTab !== 'record') setEditingRecordId(null);
-    if (activeTab !== 'expenses') setEditingExpenseId(null);
-  }, [activeTab]);
-
-  const renderContent = () => {
-    if (!isAuthenticated) {
-      return <Login />;
-    }
-
-    switch (activeTab) {
-      case 'dashboard':
-        return <Dashboard onNavigate={setActiveTab} />;
-      case 'record':
-        return <DailyRecord editingId={editingRecordId} onSave={() => setActiveTab('records')} />;
-      case 'expenses':
-        return <Expenses editingId={editingExpenseId} onSave={() => setActiveTab('records')} />;
-      case 'records':
-        return <RecordsList onEditRecord={handleEditRecord} onEditExpense={handleEditExpense} />;
-      case 'simulator':
-        return <Simulator onNavigate={setActiveTab} />;
-      case 'history':
-        return <History />;
-      default:
-        return <Dashboard onNavigate={setActiveTab} />;
-    }
-  };
+  if (!isAuthenticated) {
+    return <Login />;
+  }
 
   return (
     <div className="app-container">
       <header className="flex-between" style={{ padding: '1.5rem 1.5rem 0' }}>
         <div className="font-bold text-xs text-secondary tracking-wider uppercase">Entel Horas Extras</div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {isAuthenticated && (
-            <button 
-              onClick={logout}
-              className="btn-icon"
-              style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', cursor: 'pointer' }}
-              title="Cerrar Sesión"
-            >
-              <LogOut size={18} />
-            </button>
-          )}
-          <button 
+          <button
+            onClick={logout}
+            className="btn-icon"
+            style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', cursor: 'pointer' }}
+            title="Cerrar Sesión"
+          >
+            <LogOut size={18} />
+          </button>
+          <button
             onClick={toggleTheme}
             className="btn-icon"
             style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', cursor: 'pointer' }}
@@ -90,51 +78,39 @@ function App() {
         </div>
       </header>
 
-      <div className="content-area">
-        {renderContent()}
+      <div className="content-area" role="main">
+        <Suspense fallback={<div className="flex-center" style={{ minHeight: '30vh' }}><p className="text-secondary">Cargando...</p></div>}>
+        <Routes>
+          <Route path="/" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+          <Route path="/record/:id?" element={<ErrorBoundary><DailyRecord /></ErrorBoundary>} />
+          <Route path="/expenses/:id?" element={<ErrorBoundary><Expenses /></ErrorBoundary>} />
+          <Route path="/records" element={<ErrorBoundary><RecordsList /></ErrorBoundary>} />
+          <Route path="/simulator" element={<ErrorBoundary><Simulator /></ErrorBoundary>} />
+          <Route path="/settings" element={<ErrorBoundary><History /></ErrorBoundary>} />
+        </Routes>
+        </Suspense>
       </div>
 
-      {isAuthenticated && (
-        <nav className="bottom-nav">
-          <button 
-            className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dashboard')}
+      <nav className="bottom-nav" aria-label="Navegación principal">
+        {pages.map(({ tab, path, icon: Icon, label }) => (
+          <button
+            key={tab}
+            className={`nav-item ${tab === 'record' ? (isIngresarActive ? 'active' : '') : isActive(tab) ? 'active' : ''}`}
+            onClick={() => navigate(path)}
+            aria-label={label}
+            aria-current={tab === 'record' ? (isIngresarActive ? 'page' : undefined) : isActive(tab) ? 'page' : undefined}
           >
-            <Home size={20} />
-            <span>Inicio</span>
+            <Icon size={20} aria-hidden="true" />
+            <span>{label}</span>
           </button>
-          <button 
-            className={`nav-item ${activeTab === 'records' ? 'active' : ''}`}
-            onClick={() => setActiveTab('records')}
-          >
-            <List size={20} />
-            <span>Registros</span>
-          </button>
-          <button 
-            className={`nav-item ${(activeTab === 'record' || activeTab === 'expenses') ? 'active' : ''}`}
-            onClick={() => setActiveTab('record')}
-          >
-            <CalendarPlus size={20} />
-            <span>Ingresar</span>
-          </button>
-          <button 
-            className={`nav-item ${activeTab === 'simulator' ? 'active' : ''}`}
-            onClick={() => setActiveTab('simulator')}
-          >
-            <PieChart size={20} />
-            <span>Reporte</span>
-          </button>
-          <button 
-            className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
-            onClick={() => setActiveTab('history')}
-          >
-            <HistoryIcon size={20} />
-            <span>Ajustes</span>
-          </button>
-        </nav>
-      )}
+        ))}
+      </nav>
     </div>
   );
+}
+
+function App() {
+  return <Layout />;
 }
 
 export default App;

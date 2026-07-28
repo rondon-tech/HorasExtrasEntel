@@ -31,18 +31,18 @@ describe('Payroll Service Engine', () => {
 
   it('should calculate extra hours correctly according to Entel logic', () => {
     // base + incentivo = 639908 + 203192 = 843100
-    // extraHourRate = 843100 / 120 = 7025.8333... -> rounded 7026
-    
+    // extraHourRate = Math.round(843100 / 120) = 7026
+
     const records = [
       { extra_hours: 2, day_type: 'Normal', is_contingencia: false, is_feriado: false, date: new Date('2026-07-01') },
       { extra_hours: 3.5, day_type: 'Normal', is_contingencia: false, is_feriado: false, date: new Date('2026-07-02') }
     ];
-    
+
     const result = calculatePayroll(records, [], defaultParams);
-    
+
     expect(result.totalExtraHoursThisMonth).toBe(5.5);
-    // 5.5 * 7025.8333... = 38642.0833... -> 38642
-    expect(result.totalExtraPayThisMonth).toBe(38642);
+    // 5.5 * 7026 = 38643
+    expect(result.totalExtraPayThisMonth).toBe(38643);
   });
 
   it('should calculate compensations and viaticos correctly', () => {
@@ -66,5 +66,35 @@ describe('Payroll Service Engine', () => {
     
     // Viaticos = 2 * 9800 = 19600
     expect(result.totalExpensesThisMonth).toBe(19600);
+  });
+
+  it('should apply 4% tax bracket when baseTributable > 862.822', () => {
+    const highParams = {
+      ...defaultParams,
+      sueldo_base: 1000000, // high enough to trigger tax
+      gratificacion: 0,
+      incentivo_produccion: 0,
+      bono_tad: 0,
+      bono_contingencia: 0,
+      viatico_rate: 0,
+    };
+    // baseTributable ≈ 1000000 - 189000(AFP+Salud+Cesantia) = 811000... needs to be higher
+    // try sueldo_base = 1200000 => base = 1200000 - (1200000*0.1887) = 1200000-226440 = 973560 > 862822 ✓
+    highParams.sueldo_base = 1200000;
+    highParams.asignacion_alimentacion = 0;
+    highParams.desgaste_herramientas = 0;
+    highParams.cuota_sindicato = 0;
+    highParams.prestamo = 0;
+    highParams.otros_descuentos = 0;
+
+    const result = calculatePayroll([], [], highParams);
+    expect(result.baseTributable).toBeGreaterThan(862822);
+    expect(result.impuestoUnico).toBeGreaterThan(0);
+    expect(result.liquidoAPagar).toBeLessThan(result.totalHaberesImponibles + result.totalHaberesExentos);
+  });
+
+  it('should return impuestoUnico = 0 when baseTributable is below threshold', () => {
+    const result = calculatePayroll([], [], defaultParams);
+    expect(result.impuestoUnico).toBe(0); // default salary is below 862.822 after deductions
   });
 });

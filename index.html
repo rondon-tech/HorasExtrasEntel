@@ -1,13 +1,23 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>horas-extras-app</title>
+    <meta name="theme-color" content="#0066ff" />
+    <meta name="description" content="Registro y cálculo de horas extras, viáticos y liquidaciones para técnicos Entel" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Entel Horas Extras</title>
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js');
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

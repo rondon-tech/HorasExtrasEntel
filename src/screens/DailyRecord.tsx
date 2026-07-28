@@ -1,38 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAppContext, type DayType } from '../context/AppContext';
 import { format } from 'date-fns';
-
-const tareasOptions = [
-  "Seleccione Descripcion ...",
-  "Calidad / Mediciones / Survey",
-  "Capacitación / Acreditación",
-  "Fiscalización",
-  "Incidencia en Sitio",
-  "Instalación Menor / Apoyo en Antenas",
-  "Logística: Cambio de Camioneta / Trámites Administrativos",
-  "Logística: Gestión de BIN / VIN / Bidones",
-  "Logística: Gestión de Llaves",
-  "Logística: Retiro / Devolución de Repuestos y Equipos",
-  "Mantenimiento Correctivo Clima",
-  "Mantenimiento Correctivo DX",
-  "Mantenimiento Correctivo Energía",
-  "Mantenimiento Correctivo RAN",
-  "Mantenimiento Correctivo TX",
-  "Mantenimiento Preventivo GGEE",
-  "Mantenimiento Proactivo / Preventivo",
-  "Recarga de Combustible",
-  "Respaldo con GGEE",
-  "Traslado a Domicilio"
-];
+import { TAREAS_OPTIONS, TAREA_PLACEHOLDER } from '../constants/tasks';
 
 const dayTypes: DayType[] = ['Normal', 'TAD', 'TAD Apoyo'];
 
-interface Props {
-  editingId?: string | null;
-  onSave?: () => void;
-}
-
-const DailyRecord: React.FC<Props> = ({ editingId, onSave }) => {
+const DailyRecord: React.FC = () => {
+  const { id: editingId } = useParams<{ id?: string }>();
+  const navigate = useNavigate();
   const { records, addRecord, editRecord } = useAppContext();
   
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -41,7 +18,7 @@ const DailyRecord: React.FC<Props> = ({ editingId, onSave }) => {
   const [isContingencia, setIsContingencia] = useState(false);
   const [sitio, setSitio] = useState('');
   const [numeroTarea, setNumeroTarea] = useState('');
-  const [tarea, setTarea] = useState(tareasOptions[0]);
+  const [tarea, setTarea] = useState<string>(TAREA_PLACEHOLDER);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [computedHours, setComputedHours] = useState(0);
@@ -84,14 +61,14 @@ const DailyRecord: React.FC<Props> = ({ editingId, onSave }) => {
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (tarea === tareasOptions[0]) {
-      alert('Por favor, seleccione una descripción de tarea válida.');
+    if (tarea === TAREA_PLACEHOLDER) {
+      toast.error('Por favor, seleccione una descripción de tarea válida.');
       return;
     }
     if (numeroTarea.trim() !== '') {
       const isDuplicate = records.some(r => r.numeroTarea?.trim() === numeroTarea.trim() && r.id !== editingId);
       if (isDuplicate) {
-        alert('Este número de tarea ya ha sido registrado anteriormente.');
+        toast.error('Este número de tarea ya ha sido registrado anteriormente.');
         return;
       }
     }
@@ -111,14 +88,14 @@ const DailyRecord: React.FC<Props> = ({ editingId, onSave }) => {
 
     if (editingId) {
       editRecord(editingId, recordData);
-      alert('Registro actualizado');
-      if (onSave) onSave();
+      toast.success('Registro actualizado');
+      navigate('/records');
     } else {
       addRecord(recordData);
-      alert('Registro guardado correctamente');
+      toast.success('Registro guardado correctamente');
       setSitio('');
       setNumeroTarea('');
-      setTarea(tareasOptions[0]);
+      setTarea(TAREA_PLACEHOLDER);
       setStartTime('');
       setEndTime('');
       setDate(format(new Date(), 'yyyy-MM-dd'));
@@ -195,7 +172,7 @@ const DailyRecord: React.FC<Props> = ({ editingId, onSave }) => {
             onChange={e => setTarea(e.target.value)}
             required
           >
-            {tareasOptions.map(t => <option key={t} value={t}>{t}</option>)}
+            {TAREAS_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
 
