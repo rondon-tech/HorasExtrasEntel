@@ -1,3 +1,0 @@
-Organization ID: org-rapid-smoke-68175178
-name: hhee-entel
-Token: napi_l8z66ae53r5rc6imotqj3e69ct6me3ijtwz74azcou76tvq1jflipmba4zq56fph
