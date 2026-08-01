@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "server": "tsx api/index.js",
-    "migrate": "node migrate.mjs up",
-    "migrate:down": "node migrate.mjs down",
+    "migrate": "tsx migrate.mjs up",
+    "migrate:down": "tsx migrate.mjs down",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "typecheck": "tsc -p tsconfig.backend.json --noEmit",
@@ -40,6 +40,7 @@
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.18.1",
     "recharts": "^3.9.0",
+    "sodium-native": "^5.1.0",
     "winston": "^3.19.0",
     "xss": "^1.0.15",
     "zod": "^4.4.3"

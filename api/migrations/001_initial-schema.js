@@ -76,14 +76,17 @@ export async function up(pgm) {
   pgm.sql(`CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses (date);`);
   pgm.sql(`CREATE INDEX IF NOT EXISTS idx_records_date_month ON records (EXTRACT(YEAR FROM date), EXTRACT(MONTH FROM date));`);
 
-  // Data integrity constraints (T025)
+  // Data integrity constraints (T025) — use DO block for Neon compatibility
   pgm.sql(`
-    ALTER TABLE records
-    ADD CONSTRAINT IF NOT EXISTS chk_records_extra_hours CHECK (extra_hours >= 0);
-  `);
-  pgm.sql(`
-    ALTER TABLE records
-    ADD CONSTRAINT IF NOT EXISTS chk_records_day_type CHECK (day_type IN ('Normal', 'TAD', 'TAD Apoyo'));
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_records_extra_hours') THEN
+        ALTER TABLE records ADD CONSTRAINT chk_records_extra_hours CHECK (extra_hours >= 0);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_records_day_type') THEN
+        ALTER TABLE records ADD CONSTRAINT chk_records_day_type CHECK (day_type IN ('Normal', 'TAD', 'TAD Apoyo'));
+      END IF;
+    END $$;
   `);
 }
 
