@@ -28,6 +28,7 @@ dist-ssr
 .env.*
 !.env.example
 api-R2.md
+api-neon.md
 
 # Logs directory
 logs/ 
