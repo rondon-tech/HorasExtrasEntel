@@ -18,6 +18,6 @@
     "noUnusedParameters": false,
     "types": ["node"]
   },
-  "include": ["api/**/*.js", "api/**/*.ts", "migrate.mjs"],
+  "include": ["api/**/*.js", "api/**/*.ts", "server/**/*.js", "server/**/*.ts", "migrate.mjs"],
   "exclude": ["api/**/*.test.js", "api/**/*.test.ts"]
 }

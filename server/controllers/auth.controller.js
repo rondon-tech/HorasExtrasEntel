@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { getConfig } from '../../config/env.js';
-import { pool } from '../../config/db.js';
+import { getConfig } from '../config/env.js';
+import { pool } from '../config/db.js';
 
 export const authController = {
   async login(req, res) {

@@ -7,9 +7,8 @@
  * Uses the same DATABASE_URL from .env, validated by api/config/env.js.
  */
 
+import { getConfig } from './server/config/env.js';
 import dotenv from 'dotenv';
-import { execSync } from 'child_process';
-import { getConfig } from './api/config/env.js';
 
 dotenv.config();
 
@@ -17,10 +16,11 @@ dotenv.config();
 getConfig();
 
 const command = process.argv[2] || 'up';
+const migDir = 'server/migrations';
 
 try {
   execSync(
-    `npx node-pg-migrate ${command} --migrations-dir api/migrations --migration-filename-format utc --migration-table-name pgmigrations`,
+    `npx node-pg-migrate ${command} --migrations-dir ${migDir} --migration-filename-format utc --migration-table-name pgmigrations`,
     { stdio: 'inherit', env: { ...process.env } }
   );
   console.log(`\nMigration "${command}" completed successfully.`);

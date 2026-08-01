@@ -2,16 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import { authRouter } from './routes/auth.routes.js';
-import { pool } from './config/db.js';
-import { requireAuth } from './middlewares/auth.js';
-import { logger } from './utils/logger.js';
-import { errorHandler } from './middlewares/errorHandler.js';
-import { getConfig } from './config/env.js';
-import { expenseRouter } from './routes/expense.routes.js';
-import { recordRouter } from './routes/record.routes.js';
-import { paramsRouter } from './routes/params.routes.js';
-import { payrollController } from './controllers/payroll.controller.js';
+import { authRouter } from '../server/routes/auth.routes.js';
+import { pool } from '../server/config/db.js';
+import { requireAuth } from '../server/middlewares/auth.js';
+import { logger } from '../server/utils/logger.js';
+import { errorHandler } from '../server/middlewares/errorHandler.js';
+import { getConfig } from '../server/config/env.js';
+import { expenseRouter } from '../server/routes/expense.routes.js';
+import { recordRouter } from '../server/routes/record.routes.js';
+import { paramsRouter } from '../server/routes/params.routes.js';
+import { payrollController } from '../server/controllers/payroll.controller.js';
 
 const app = express();
 
@@ -71,13 +71,13 @@ app.use((req, res, next) => {
 // --- Authentication Router (rate-limited login) ---
 app.use('/api', authRouter);
 
-// PostgreSQL connection pool is managed by api/config/db.js.
+// PostgreSQL connection pool is managed by server/config/db.js.
 // It validates env vars, configures SSL, and handles idle-client errors.
 
 // Schema migrations should be run BEFORE deploy:
 //   npm run migrate          (apply pending migrations)
 //   npm run migrate:down     (rollback last migration)
-// See migrate.mjs and api/migrations/ for details.
+// See migrate.mjs and server/migrations/ for details.
 // DEPRECATED: inline initDB() removed in favour of versioned migrations.
 
 // --- Params Router ---
