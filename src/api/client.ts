@@ -19,10 +19,18 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Si recibimos 401, el token expiró o es inválido.
-      // Emitimos un evento custom para que el AuthContext se encargue del logout
       window.dispatchEvent(new CustomEvent('auth:unauthorized'));
     }
+    
+    if (error.response?.data) {
+      const serverError = error.response.data;
+      const message = serverError.message || serverError.error || error.message;
+      const enhancedError = new Error(message);
+      (enhancedError as any).serverData = serverError;
+      (enhancedError as any).status = error.response.status;
+      return Promise.reject(enhancedError);
+    }
+    
     return Promise.reject(error);
   }
 );

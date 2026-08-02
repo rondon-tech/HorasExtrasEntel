@@ -113,9 +113,18 @@ const DailyRecord: React.FC = () => {
         setIsFeriado(false);
         setIsContingencia(false);
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error al guardar el registro';
-      toast.error(message);
+    } catch (error: any) {
+      const serverData = error.serverData;
+      let message = error.message || 'Error al guardar el registro';
+      
+      if (serverData?.details) {
+        message = serverData.details.map((d: any) => d.message).join(', ');
+      } else if (serverData?.detail) {
+        message = serverData.detail;
+      }
+      
+      toast.error(message, { duration: 5000 });
+      console.error('Error al guardar:', { error, serverData });
     } finally {
       setSaving(false);
     }
