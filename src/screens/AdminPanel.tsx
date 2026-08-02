@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import toast from 'react-hot-toast';
-import { Shield, RotateCcw, Trash2, Users } from 'lucide-react';
+import { Shield, RotateCcw, Trash2, Users, UserPlus } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Spinner } from '../components/Spinner';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: string;
@@ -16,6 +17,7 @@ interface User {
 }
 
 const AdminPanel: React.FC = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -77,6 +79,18 @@ const AdminPanel: React.FC = () => {
         <span className="text-xs text-secondary">{total} usuario{total !== 1 ? 's' : ''}</span>
       </div>
       <p className="text-sm text-secondary mb-6">Gestiona usuarios, resetea contraseñas y administra cuentas.</p>
+
+      <div className="flex-between mb-4">
+        <span></span>
+        <button
+          onClick={() => navigate('/register')}
+          className="btn btn-primary"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.9rem', fontSize: '0.8rem' }}
+        >
+          <UserPlus size={14} />
+          Nuevo Usuario
+        </button>
+      </div>
 
       {loading ? (
         <Spinner />

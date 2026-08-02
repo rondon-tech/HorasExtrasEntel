@@ -87,6 +87,18 @@ const Register: React.FC = () => {
         <p className="text-xs text-secondary text-center mt-3" style={{ marginBottom: 0 }}>
           Al crear el usuario, iniciarás sesión automáticamente como él.
         </p>
+        <button
+          type="button"
+          onClick={() => navigate('/admin')}
+          style={{
+            display: 'block', width: '100%', marginTop: '1rem',
+            background: 'transparent', border: '1px solid var(--border-color)',
+            color: 'var(--text-secondary)', padding: '0.4rem', borderRadius: '0.5rem',
+            cursor: 'pointer', fontSize: '0.8rem',
+          }}
+        >
+          ← Volver a Administración
+        </button>
       </div>
     </div>
   );
