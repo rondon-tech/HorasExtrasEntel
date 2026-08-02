@@ -13,6 +13,7 @@ function decodeJWT(token: string): { id?: string; role?: string; passwordChangeR
 interface AuthContextType {
   isAuthenticated: boolean;
   token: string | null;
+  role: string | null;
   passwordChangeRequired: boolean;
   login: (token: string) => void;
   register: (username: string, password?: string) => Promise<void>;
@@ -24,6 +25,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('auth_token'));
+  const [role, setRole] = useState<string | null>(() => {
+    const stored = localStorage.getItem('auth_token');
+    return stored ? (decodeJWT(stored)?.role ?? null) : null;
+  });
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(() => {
     const stored = localStorage.getItem('auth_token');
     if (stored) {
@@ -38,9 +43,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (token) {
       localStorage.setItem('auth_token', token);
       const decoded = decodeJWT(token);
+      setRole(decoded?.role ?? null);
       setPasswordChangeRequired(decoded?.passwordChangeRequired ?? false);
     } else {
       localStorage.removeItem('auth_token');
+      setRole(null);
       setPasswordChangeRequired(false);
     }
   }, [token]);
@@ -74,7 +81,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, token, passwordChangeRequired, login, register, changePassword, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, token, role, passwordChangeRequired, login, register, changePassword, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,9 +1,10 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Home, CalendarPlus, History as HistoryIcon, Sun, Moon, PieChart, List, LogOut } from 'lucide-react';
+import { Home, CalendarPlus, History as HistoryIcon, Sun, Moon, PieChart, List, LogOut, Shield } from 'lucide-react';
 import Login from './screens/Login';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { HealthBanner } from './components/HealthBanner';
+import { AdminGuard } from './components/AdminGuard';
 import { useAuth } from './context/AuthContext';
 
 const Dashboard = lazy(() => import('./screens/Dashboard'));
@@ -12,6 +13,7 @@ const Expenses = lazy(() => import('./screens/Expenses'));
 const History = lazy(() => import('./screens/History'));
 const Simulator = lazy(() => import('./screens/Simulator'));
 const RecordsList = lazy(() => import('./screens/RecordsList'));
+const AdminPanel = lazy(() => import('./screens/AdminPanel'));
 const Register = lazy(() => import('./screens/Register'));
 const ChangePassword = lazy(() => import('./screens/ChangePassword'));
 
@@ -68,6 +70,16 @@ function Layout() {
       <header className="flex-between" style={{ padding: '1.5rem 1.5rem 0' }}>
         <div className="font-bold text-xs text-secondary tracking-wider uppercase">Entel Horas Extras</div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <AdminGuard>
+            <button
+              onClick={() => navigate('/admin')}
+              className="btn-icon"
+              style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--accent-green)', cursor: 'pointer' }}
+              title="Administración"
+            >
+              <Shield size={18} />
+            </button>
+          </AdminGuard>
           <button
             onClick={logout}
             className="btn-icon"
@@ -97,6 +109,7 @@ function Layout() {
           <Route path="/simulator" element={<ErrorBoundary><Simulator /></ErrorBoundary>} />
           <Route path="/settings" element={<ErrorBoundary><History /></ErrorBoundary>} />
           <Route path="/register" element={<ErrorBoundary><Register /></ErrorBoundary>} />
+          <Route path="/admin" element={<ErrorBoundary><AdminPanel /></ErrorBoundary>} />
         </Routes>
         </Suspense>
       </div>

@@ -27,3 +27,6 @@ export function requireRole(...allowedRoles) {
     next();
   };
 }
+
+/** Semantic alias — requires global_admin role. */
+export const requireGlobalAdmin = requireRole('global_admin');
