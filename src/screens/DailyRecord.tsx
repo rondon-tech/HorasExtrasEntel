@@ -96,6 +96,7 @@ const DailyRecord: React.FC = () => {
     };
 
     try {
+      console.log('Enviando a POST /records:', recordData);
       if (editingId) {
         await editRecord(editingId, recordData);
         toast.success('Registro actualizado');
@@ -115,16 +116,28 @@ const DailyRecord: React.FC = () => {
       }
     } catch (error: any) {
       const serverData = error.serverData;
+      const status = error.status;
       let message = error.message || 'Error al guardar el registro';
       
       if (serverData?.details) {
         message = serverData.details.map((d: any) => d.message).join(', ');
       } else if (serverData?.detail) {
         message = serverData.detail;
+      } else if (serverData?.message) {
+        message = serverData.message;
       }
       
-      toast.error(message, { duration: 5000 });
-      console.error('Error al guardar:', { error, serverData });
+      if (status) {
+        message = `[${status}] ${message}`;
+      }
+      
+      toast.error(message, { duration: 8000 });
+      console.group('Error al guardar registro');
+      console.error('Status:', status);
+      console.error('Message:', error.message);
+      console.error('ServerData:', serverData);
+      console.error('Full Error:', error);
+      console.groupEnd();
     } finally {
       setSaving(false);
     }
