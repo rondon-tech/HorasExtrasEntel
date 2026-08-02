@@ -252,7 +252,7 @@ const AdminPanel: React.FC = () => {
                   </div>
                 </div>
                 <div className="admin-user-cell admin-email">{user.email}</div>
-                <div className="admin-user-cell">
+                <div className="admin-user-cell admin-role">
                   <span className={`admin-badge ${user.role === 'global_admin' ? 'admin-badge-admin' : 'admin-badge-user'}`}>
                     {user.role === 'global_admin' ? 'Admin' : 'Usuario'}
                   </span>
@@ -260,7 +260,7 @@ const AdminPanel: React.FC = () => {
                 <div className="admin-user-cell admin-date">
                   {format(parseISO(user.createdAt), 'dd MMM yyyy', { locale: es })}
                 </div>
-                <div className="admin-user-cell">
+                <div className="admin-user-cell admin-status">
                   <span className={`admin-badge ${user.password_change_required ? 'admin-badge-pending' : 'admin-badge-active'}`}>
                     {user.password_change_required ? 'Pendiente' : 'Activo'}
                   </span>

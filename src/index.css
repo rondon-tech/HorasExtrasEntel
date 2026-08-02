@@ -602,11 +602,57 @@ select.form-control {
 
 @media (max-width: 700px) {
   .admin-users-card {
-    overflow-x: auto;
+    overflow: hidden;
   }
 
   .admin-users-grid {
-    min-width: 760px;
+    min-width: 0;
+  }
+
+  .admin-users-header {
+    display: none;
+  }
+
+  .admin-user-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.7rem;
+    padding: 1rem;
+  }
+
+  .admin-user-identity {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .admin-email {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 0.78rem;
+  }
+
+  .admin-role {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .admin-date {
+    display: none;
+  }
+
+  .admin-status {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+
+  .admin-actions {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-content: flex-end;
+    width: 100%;
+    padding-top: 0.7rem;
+    border-top: 1px solid var(--border-color);
   }
 }
 
