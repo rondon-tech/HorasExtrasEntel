@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import toast from 'react-hot-toast';
@@ -150,7 +150,7 @@ const AdminPanel: React.FC = () => {
   const [confirmReset, setConfirmReset] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await apiClient.get(`/admin/users?page=${page}&limit=${limit}`);
@@ -161,9 +161,9 @@ const AdminPanel: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page]);
 
-  useEffect(() => { fetchUsers(); }, [page]);
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
@@ -227,94 +227,64 @@ const AdminPanel: React.FC = () => {
         <Spinner />
       ) : (
         <>
-          <div className="glass-card" style={{ overflow: 'hidden', padding: 0 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.15)' }}>
-                  <th style={thStyle}>Usuario</th>
-                  <th style={thStyle}>Email</th>
-                  <th style={thStyle}>Rol</th>
-                  <th style={thStyle}>Creado</th>
-                  <th style={thStyle}>Estado</th>
-                  <th style={{ ...thStyle, textAlign: 'center', paddingRight: '0.75rem' }}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(user => (
-                  <tr key={user.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={tdStyle}>
-                      <div className="flex-center" style={{ gap: '0.6rem', justifyContent: 'flex-start' }}>
-                        <div style={{
-                          width: 32, height: 32, borderRadius: '50%',
-                          background: avatarBg(user.id),
-                          color: avatarColor(user.id),
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '0.8rem', fontWeight: 700, flexShrink: 0,
-                        }}>
-                          {user.firstName.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm m-0" style={{ lineHeight: 1.3 }}>{user.firstName} {user.lastName}</p>
-                          <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>@{user.username}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={tdStyle}>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{user.email}</span>
-                    </td>
-                    <td style={tdStyle}>
-                      <span style={{
-                        padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.68rem',
-                        fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em',
-                        background: user.role === 'global_admin' ? 'rgba(16,185,129,0.15)' : 'rgba(0,102,255,0.1)',
-                        color: user.role === 'global_admin' ? 'var(--accent-green)' : 'var(--accent-blue)',
-                      }}>
-                        {user.role === 'global_admin' ? 'Admin' : 'Usuario'}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        {format(parseISO(user.createdAt), 'dd MMM yyyy', { locale: es })}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      <span style={{
-                        padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.68rem',
-                        fontWeight: 600, letterSpacing: '0.03em',
-                        background: user.password_change_required ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.1)',
-                        color: user.password_change_required ? 'var(--accent-orange)' : 'var(--accent-green)',
-                      }}>
-                        {user.password_change_required ? 'Pendiente' : 'Activo'}
-                      </span>
-                    </td>
-                    <td style={{ ...tdStyle, textAlign: 'center', paddingRight: '0.5rem' }}>
-                      <div style={{ display: 'flex', gap: '0.2rem', justifyContent: 'center' }}>
-                        <button onClick={() => setEditingUser(user)} title="Editar"
-                          style={actionBtnStyle('var(--accent-blue)')}>
-                          <Pencil size={14} />
-                        </button>
-                        <button onClick={() => setConfirmReset(user.id)} title="Resetear contraseña"
-                          style={actionBtnStyle('var(--accent-orange)')}>
-                          <RotateCcw size={14} />
-                        </button>
-                        <button onClick={() => setConfirmDelete(user.id)} title="Eliminar"
-                          style={actionBtnStyle('var(--accent-red)')}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {users.length === 0 && (
-                  <tr>
-                    <td colSpan={6} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
-                      <Users size={24} style={{ marginBottom: '0.5rem', opacity: 0.4 }} />
-                      <p className="m-0">No hay usuarios registrados</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="glass-card admin-users-card">
+            <div className="admin-users-header admin-users-grid">
+              <span>Usuario</span>
+              <span>Email</span>
+              <span>Rol</span>
+              <span>Creado</span>
+              <span>Estado</span>
+              <span className="admin-actions-heading">Acciones</span>
+            </div>
+
+            {users.map(user => (
+              <div key={user.id} className="admin-user-row admin-users-grid">
+                <div className="admin-user-cell admin-user-identity">
+                  <div
+                    className="admin-avatar"
+                    style={{ background: avatarBg(user.id), color: avatarColor(user.id) }}
+                  >
+                    {user.firstName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="admin-user-name">
+                    <strong>{user.firstName} {user.lastName}</strong>
+                    <span>@{user.username}</span>
+                  </div>
+                </div>
+                <div className="admin-user-cell admin-email">{user.email}</div>
+                <div className="admin-user-cell">
+                  <span className={`admin-badge ${user.role === 'global_admin' ? 'admin-badge-admin' : 'admin-badge-user'}`}>
+                    {user.role === 'global_admin' ? 'Admin' : 'Usuario'}
+                  </span>
+                </div>
+                <div className="admin-user-cell admin-date">
+                  {format(parseISO(user.createdAt), 'dd MMM yyyy', { locale: es })}
+                </div>
+                <div className="admin-user-cell">
+                  <span className={`admin-badge ${user.password_change_required ? 'admin-badge-pending' : 'admin-badge-active'}`}>
+                    {user.password_change_required ? 'Pendiente' : 'Activo'}
+                  </span>
+                </div>
+                <div className="admin-user-cell admin-actions">
+                  <button onClick={() => setEditingUser(user)} className="admin-action admin-action-edit" title="Editar usuario" aria-label={`Editar ${user.username}`}>
+                    <Pencil size={16} />
+                  </button>
+                  <button onClick={() => setConfirmReset(user.id)} className="admin-action admin-action-reset" title="Resetear contraseña" aria-label={`Resetear contraseña de ${user.username}`}>
+                    <RotateCcw size={16} />
+                  </button>
+                  <button onClick={() => setConfirmDelete(user.id)} className="admin-action admin-action-delete" title="Eliminar usuario" aria-label={`Eliminar ${user.username}`}>
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {users.length === 0 && (
+              <div className="admin-empty-state">
+                <Users size={24} />
+                <p>No hay usuarios registrados</p>
+              </div>
+            )}
           </div>
 
           {totalPages > 1 && (
@@ -349,29 +319,5 @@ const AdminPanel: React.FC = () => {
     </div>
   );
 };
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '0.8rem 0.75rem',
-  fontWeight: 500,
-  fontSize: '0.68rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  color: 'var(--text-muted)',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '0.85rem 0.75rem',
-  verticalAlign: 'middle',
-};
-
-function actionBtnStyle(color: string): React.CSSProperties {
-  return {
-    width: 30, height: 30,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: color + '15', border: 'none', color,
-    cursor: 'pointer', borderRadius: '0.4rem',
-  };
-}
 
 export default AdminPanel;

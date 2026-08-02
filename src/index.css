@@ -405,6 +405,211 @@ select.form-control {
   to { transform: rotate(360deg); }
 }
 
+.admin-users-card {
+  overflow: hidden;
+  padding: 0;
+}
+
+.admin-users-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(190px, 1.2fr) minmax(90px, 0.65fr) minmax(110px, 0.75fr) minmax(105px, 0.75fr) minmax(116px, 0.7fr);
+  align-items: center;
+  column-gap: 1rem;
+}
+
+.admin-users-header {
+  min-height: 3rem;
+  padding: 0 1.25rem;
+  background: rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.admin-user-row {
+  min-height: 5.25rem;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 160ms ease;
+}
+
+.admin-user-row:last-child {
+  border-bottom: 0;
+}
+
+.admin-user-row:hover {
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.admin-user-cell {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.admin-user-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.admin-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.admin-user-name {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.admin-user-name strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-user-name span {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-email,
+.admin-date {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-date {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.admin-badge-admin {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-green);
+}
+
+.admin-badge-user {
+  background: rgba(0, 102, 255, 0.1);
+  color: var(--accent-blue);
+}
+
+.admin-badge-pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-orange);
+}
+
+.admin-badge-active {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--accent-green);
+}
+
+.admin-actions-heading,
+.admin-actions {
+  text-align: right;
+}
+
+.admin-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+
+.admin-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.admin-action:hover {
+  background: var(--bg-tertiary);
+}
+
+.admin-action-edit { color: var(--accent-blue); }
+.admin-action-reset { color: var(--accent-orange); }
+.admin-action-delete { color: var(--accent-red); }
+
+.admin-empty-state {
+  display: flex;
+  min-height: 10rem;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.6rem;
+  color: var(--text-muted);
+}
+
+.admin-empty-state p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+  .admin-users-grid {
+    grid-template-columns: minmax(190px, 1.4fr) minmax(150px, 1fr) minmax(90px, 0.7fr) minmax(100px, 0.7fr) minmax(100px, 0.7fr) minmax(100px, 0.65fr);
+    column-gap: 0.65rem;
+  }
+
+  .admin-users-header,
+  .admin-user-row {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+}
+
+@media (max-width: 700px) {
+  .admin-users-card {
+    overflow-x: auto;
+  }
+
+  .admin-users-grid {
+    min-width: 760px;
+  }
+}
+
 .form-control:focus,
 .search-input:focus {
   outline: none;
