@@ -1,7 +1,5 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { validate } from '../middlewares/validate.js';
-import { loginSchema } from '../schemas/auth.schema.js';
 import { authController } from '../controllers/auth.controller.js';
 
 const router = Router();
@@ -15,6 +13,6 @@ const loginLimiter = rateLimit({
   message: { error: 'Demasiados intentos de inicio de sesión. Intente de nuevo en 15 minutos.' },
 });
 
-router.post('/login', loginLimiter, validate(loginSchema), authController.login);
+router.post('/login', loginLimiter, authController.login);
 
 export { router as authRouter };
