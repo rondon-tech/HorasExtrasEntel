@@ -2,19 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import rateLimit from 'express-rate-limit';
 import { logger } from '../server/utils/logger.js';
 import { errorHandler } from '../server/middlewares/errorHandler.js';
 import { getConfig } from '../server/config/env.js';
-
-// Global rate limiter: 200 requests per IP per minute across all endpoints
-const globalLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 200,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Demasiadas solicitudes. Intente de nuevo en un minuto.' },
-});
 
 // Attempt to load config early — if it fails we serve a clear error JSON
 // instead of an opaque 500 Internal Server Error from Vercel.
@@ -28,7 +18,6 @@ try {
 
 const app = express();
 app.set('trust proxy', 1);
-app.use(globalLimiter);
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
