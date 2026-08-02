@@ -12,6 +12,7 @@ router.use(requireGlobalAdmin);
 
 router.get('/users', adminController.listUsers);
 router.post('/users/:id/reset-password', adminController.resetPassword);
+router.put('/users/:id', adminController.updateUser);
 router.delete('/users/:id', adminController.removeUser);
 
 export { router as adminRouter };
