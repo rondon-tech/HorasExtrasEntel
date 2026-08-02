@@ -1,4 +1,4 @@
-const CACHE_NAME = 'entel-he-v1';
+const CACHE_NAME = 'entel-he-v2';
 
 // Assets to cache immediately on install (app shell)
 const PRECACHE_URLS = [
