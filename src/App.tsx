@@ -12,6 +12,8 @@ const Expenses = lazy(() => import('./screens/Expenses'));
 const History = lazy(() => import('./screens/History'));
 const Simulator = lazy(() => import('./screens/Simulator'));
 const RecordsList = lazy(() => import('./screens/RecordsList'));
+const Register = lazy(() => import('./screens/Register'));
+const ChangePassword = lazy(() => import('./screens/ChangePassword'));
 
 // Map URL paths to tab keys (used for bottom-nav active state)
 const pathToTab: Record<string, string> = {
@@ -24,7 +26,7 @@ const pathToTab: Record<string, string> = {
 };
 
 function Layout() {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, passwordChangeRequired } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [theme, setTheme] = useState(() => localStorage.getItem('entel_theme') || 'dark');
@@ -53,6 +55,11 @@ function Layout() {
 
   if (!isAuthenticated) {
     return <ErrorBoundary><Login /></ErrorBoundary>;
+  }
+
+  // First-login password change screen — blocks all navigation
+  if (passwordChangeRequired) {
+    return <ErrorBoundary><ChangePassword /></ErrorBoundary>;
   }
 
   return (
@@ -89,6 +96,7 @@ function Layout() {
           <Route path="/records" element={<ErrorBoundary><RecordsList /></ErrorBoundary>} />
           <Route path="/simulator" element={<ErrorBoundary><Simulator /></ErrorBoundary>} />
           <Route path="/settings" element={<ErrorBoundary><History /></ErrorBoundary>} />
+          <Route path="/register" element={<ErrorBoundary><Register /></ErrorBoundary>} />
         </Routes>
         </Suspense>
       </div>

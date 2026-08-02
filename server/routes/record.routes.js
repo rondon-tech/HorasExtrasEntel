@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middlewares/auth.js';
+import { requirePasswordChanged } from '../middlewares/password-change.js';
 import { validate } from '../middlewares/validate.js';
 import { recordSchema } from '../schemas/record.schema.js';
 import { idParamSchema } from '../schemas/id-param.schema.js';
@@ -8,6 +9,7 @@ import { recordController } from '../controllers/record.controller.js';
 const router = Router();
 
 router.use(requireAuth);
+router.use(requirePasswordChanged);
 
 router.get('/', recordController.getAll);
 router.post('/', validate(recordSchema), recordController.create);

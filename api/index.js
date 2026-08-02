@@ -54,6 +54,7 @@ if (configError) {
   const { paramsRouter } = await import('../server/routes/params.routes.js');
   const { payrollController } = await import('../server/controllers/payroll.controller.js');
   const { requireAuth } = await import('../server/middlewares/auth.js');
+  const { requirePasswordChanged } = await import('../server/middlewares/password-change.js');
   const { pool } = await import('../server/config/db.js');
 
   const { authRouter } = authRouterModule;
@@ -87,7 +88,7 @@ if (configError) {
 
   app.use('/api', authRouter);
   app.use('/api/params', paramsRouter);
-  app.get('/api/payroll/:year/:month', requireAuth, payrollController.get);
+  app.get('/api/payroll/:year/:month', requireAuth, requirePasswordChanged, payrollController.get);
   app.use('/api/records', recordRouter);
   app.use('/api/expenses', expenseRouter);
 

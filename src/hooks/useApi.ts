@@ -129,3 +129,17 @@ export function useUpdateParams() {
     },
   });
 }
+
+export function useRegister() {
+  return useMutation({
+    mutationFn: (data: { username: string; password?: string }) =>
+      apiClient.post('/register', data).then(r => r.data),
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (data: { oldPassword: string; newPassword: string }) =>
+      apiClient.post('/change-password', data).then(r => r.data),
+  });
+}

@@ -26,5 +26,6 @@ const registerLimiter = rateLimit({
 
 router.post('/login', loginLimiter, authController.login);
 router.post('/register', requireAuth, requireRole('global_admin'), registerLimiter, authController.register);
+router.post('/change-password', requireAuth, authController.changePassword);
 
 export { router as authRouter };
