@@ -2,8 +2,6 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { requireAuth } from '../middlewares/auth.js';
 import { requireRole } from '../middlewares/role.js';
-import { validate } from '../middlewares/validate.js';
-import { registerSchema } from '../schemas/auth.schema.js';
 import { authController } from '../controllers/auth.controller.js';
 
 const router = Router();
@@ -27,6 +25,6 @@ const registerLimiter = rateLimit({
 });
 
 router.post('/login', loginLimiter, authController.login);
-router.post('/register', requireAuth, requireRole('global_admin'), registerLimiter, validate(registerSchema), authController.register);
+router.post('/register', requireAuth, requireRole('global_admin'), registerLimiter, authController.register);
 
 export { router as authRouter };
