@@ -13,10 +13,10 @@ interface User {
   username: string;
   role: string;
   password_change_required: boolean;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  created_at: string;
+  createdAt: string;
 }
 
 const AdminPanel: React.FC = () => {
@@ -116,7 +116,7 @@ const AdminPanel: React.FC = () => {
                 {users.map(user => (
                   <tr key={user.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={tdStyle}>
-                      <span className="font-bold text-sm">{user.first_name} {user.last_name}</span>
+                      <span className="font-bold text-sm">{user.firstName} {user.lastName}</span>
                     </td>
                     <td style={tdStyle}>
                       <div className="flex-center" style={{ gap: '0.5rem', justifyContent: 'flex-start' }}>
@@ -147,7 +147,7 @@ const AdminPanel: React.FC = () => {
                     </td>
                     <td style={tdStyle}>
                       <span className="text-xs text-secondary">
-                        {format(parseISO(user.created_at), 'dd MMM yyyy', { locale: es })}
+                        {format(parseISO(user.createdAt), 'dd MMM yyyy', { locale: es })}
                       </span>
                     </td>
                     <td style={tdStyle}>

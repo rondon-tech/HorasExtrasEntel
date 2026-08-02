@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { apiClient } from '../api/client';
 
-function decodeJWT(token: string): { id?: string; role?: string; passwordChangeRequired?: boolean } | null {
+function decodeJWT(token: string | null): { id?: string; role?: string; passwordChangeRequired?: boolean } | null {
+  if (!token) return null;
   try {
     const payload = token.split('.')[1];
     return JSON.parse(atob(payload));
