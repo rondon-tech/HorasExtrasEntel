@@ -51,8 +51,6 @@ export const validate = (schema) => (req, res, next) => {
   const sanitized = sanitizeStrings(result.data);
 
   req.body = sanitized.body;
-  req.query = sanitized.query;
-  req.params = sanitized.params;
 
   next();
 };

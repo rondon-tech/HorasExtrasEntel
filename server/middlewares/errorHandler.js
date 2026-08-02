@@ -18,13 +18,9 @@ export const errorHandler = (err, req, res, next) => {
 
   const errorResponse = {
     error: 'Error interno del servidor',
-    message: process.env.NODE_ENV === 'production' 
-      ? 'Ocurrió un error inesperado. El equipo técnico ha sido notificado.'
-      : err.message,
-    ...(process.env.NODE_ENV !== 'production' && { 
-      code: err.code, 
-      detail: err.detail 
-    }),
+    message: err.message || 'Ocurrió un error inesperado.',
+    code: err.code,
+    detail: err.detail,
   };
 
   res.status(statusCode).json(errorResponse);
