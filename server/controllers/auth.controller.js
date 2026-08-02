@@ -70,7 +70,7 @@ export const authController = {
         ? password
         : generateTempPassword();
 
-      if (!password || typeof password !== 'string' || tempPassword.length < 6 || tempPassword.length > 128) {
+      if (password && typeof password === 'string' && (password.length < 6 || password.length > 128)) {
         return res.status(400).json({ error: 'La contraseña debe tener entre 6 y 128 caracteres.' });
       }
 
