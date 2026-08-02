@@ -18,9 +18,14 @@ const History: React.FC = () => {
   const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
-  const handleSaveParams = () => {
-    updateParams(localParams);
-    toast.success('Parámetros actualizados correctamente');
+  const handleSaveParams = async () => {
+    try {
+      await updateParams(localParams);
+      toast.success('Parámetros actualizados correctamente');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al actualizar parámetros';
+      toast.error(message);
+    }
   };
 
   const formattedMonth = format(currentMonth, 'MMMM yyyy', { locale: es });

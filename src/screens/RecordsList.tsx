@@ -27,16 +27,21 @@ const RecordsList: React.FC = () => {
   const [startDate, setStartDate] = useState(format(firstDay, 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(lastDay, 'yyyy-MM-dd'));
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!confirmDelete) return;
     const { id, isRecord } = confirmDelete;
-    if (isRecord) {
-      deleteRecord(id);
-    } else {
-      deleteExpense(id);
+    try {
+      if (isRecord) {
+        await deleteRecord(id);
+      } else {
+        await deleteExpense(id);
+      }
+      toast.success('Eliminado correctamente');
+      setConfirmDelete(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al eliminar';
+      toast.error(message);
     }
-    toast.success('Eliminado correctamente');
-    setConfirmDelete(null);
   };
 
   const allItems = [

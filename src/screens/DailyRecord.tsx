@@ -66,7 +66,7 @@ const DailyRecord: React.FC = () => {
     }
   }, [startTime, endTime]);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (tarea === TAREA_PLACEHOLDER) {
       toast.error('Por favor, seleccione una descripción de tarea válida.');
@@ -95,23 +95,28 @@ const DailyRecord: React.FC = () => {
       extraHours: computedHours
     };
 
-    if (editingId) {
-      editRecord(editingId, recordData);
-      toast.success('Registro actualizado');
-      setSaving(false);
-      navigate('/records');
-    } else {
-      addRecord(recordData);
-      toast.success('Registro guardado correctamente');
-      setSitio('');
-      setNumeroTarea('');
-      setTarea(TAREA_PLACEHOLDER);
-      setStartTime('');
-      setEndTime('');
-      setDate(format(new Date(), 'yyyy-MM-dd'));
-      setDayType('Normal');
-      setIsFeriado(false);
-      setIsContingencia(false);
+    try {
+      if (editingId) {
+        await editRecord(editingId, recordData);
+        toast.success('Registro actualizado');
+        navigate('/records');
+      } else {
+        await addRecord(recordData);
+        toast.success('Registro guardado correctamente');
+        setSitio('');
+        setNumeroTarea('');
+        setTarea(TAREA_PLACEHOLDER);
+        setStartTime('');
+        setEndTime('');
+        setDate(format(new Date(), 'yyyy-MM-dd'));
+        setDayType('Normal');
+        setIsFeriado(false);
+        setIsContingencia(false);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al guardar el registro';
+      toast.error(message);
+    } finally {
       setSaving(false);
     }
   };

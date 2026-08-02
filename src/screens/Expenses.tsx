@@ -30,7 +30,7 @@ const Expenses: React.FC = () => {
     }
   }, [editingId, expenses]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (description === TAREA_PLACEHOLDER) {
       toast.error('Por favor, seleccione una descripción de tarea válida.');
@@ -45,15 +45,20 @@ const Expenses: React.FC = () => {
       description
     };
 
-    if (editingId) {
-      editExpense(editingId, expenseData);
-      toast.success('Viático actualizado');
-      setSaving(false);
-      navigate('/records');
-    } else {
-      addExpense(expenseData);
-      toast.success('Viático guardado');
-      setDescription(TAREA_PLACEHOLDER);
+    try {
+      if (editingId) {
+        await editExpense(editingId, expenseData);
+        toast.success('Viático actualizado');
+        navigate('/records');
+      } else {
+        await addExpense(expenseData);
+        toast.success('Viático guardado');
+        setDescription(TAREA_PLACEHOLDER);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al guardar el viático';
+      toast.error(message);
+    } finally {
       setSaving(false);
     }
   };

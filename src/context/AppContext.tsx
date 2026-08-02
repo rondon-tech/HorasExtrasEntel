@@ -66,13 +66,13 @@ interface AppContextType {
   params: MonthlyParams;
   isLoading: boolean;
 
-  addRecord: (record: Omit<DailyRecord, 'id'>) => void;
-  editRecord: (id: string, record: Omit<DailyRecord, 'id'>) => void;
-  deleteRecord: (id: string) => void;
-  addExpense: (expense: Omit<ExpenseRecord, 'id'>) => void;
-  editExpense: (id: string, expense: Omit<ExpenseRecord, 'id'>) => void;
-  deleteExpense: (id: string) => void;
-  updateParams: (params: MonthlyParams) => void;
+  addRecord: (record: Omit<DailyRecord, 'id'>) => Promise<unknown>;
+  editRecord: (id: string, record: Omit<DailyRecord, 'id'>) => Promise<unknown>;
+  deleteRecord: (id: string) => Promise<unknown>;
+  addExpense: (expense: Omit<ExpenseRecord, 'id'>) => Promise<unknown>;
+  editExpense: (id: string, expense: Omit<ExpenseRecord, 'id'>) => Promise<unknown>;
+  deleteExpense: (id: string) => Promise<unknown>;
+  updateParams: (params: MonthlyParams) => Promise<unknown>;
 
   totalExtraHoursThisMonth: number;
   extraHourRate: number;
@@ -139,13 +139,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateParamsMutation = useUpdateParams();
 
   // Mapper adapters: keep backward-compatible signature with callbacks
-  const addRecord = (record: Omit<DailyRecord, 'id'>) => { createRecord.mutate(record); };
-  const editRecord = (id: string, record: Omit<DailyRecord, 'id'>) => { updateRecord.mutate({ id, ...record }); };
-  const deleteRecord = (id: string) => { removeRecord.mutate(id); };
-  const addExpense = (expense: Omit<ExpenseRecord, 'id'>) => { createExpense.mutate(expense); };
-  const editExpense = (id: string, expense: Omit<ExpenseRecord, 'id'>) => { updateExpense.mutate({ id, ...expense }); };
-  const deleteExpense = (id: string) => { removeExpense.mutate(id); };
-  const updateParams = (params: MonthlyParams) => { updateParamsMutation.mutate(params); };
+  const addRecord = (record: Omit<DailyRecord, 'id'>) => createRecord.mutateAsync(record);
+  const editRecord = (id: string, record: Omit<DailyRecord, 'id'>) => updateRecord.mutateAsync({ id, ...record });
+  const deleteRecord = (id: string) => removeRecord.mutateAsync(id);
+  const addExpense = (expense: Omit<ExpenseRecord, 'id'>) => createExpense.mutateAsync(expense);
+  const editExpense = (id: string, expense: Omit<ExpenseRecord, 'id'>) => updateExpense.mutateAsync({ id, ...expense });
+  const deleteExpense = (id: string) => removeExpense.mutateAsync(id);
+  const updateParams = (params: MonthlyParams) => updateParamsMutation.mutateAsync(params);
 
   // When not authenticated, don't run queries and use defaults
   const records: DailyRecord[] = isAuthenticated ? (recordsQuery.data ?? []) : [];

@@ -45,15 +45,27 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose, type }) 
       notes: 'Guardia / Disposición sin salida a terreno'
     };
 
-    await addRecord(ghostRecord);
-    setLoading(false);
+    try {
+      await addRecord(ghostRecord);
+      toast.success('Registro añadido');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al añadir registro';
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (confirmDeleteId) {
-      deleteRecord(confirmDeleteId);
-      toast.success('Registro eliminado');
-      setConfirmDeleteId(null);
+      try {
+        await deleteRecord(confirmDeleteId);
+        toast.success('Registro eliminado');
+        setConfirmDeleteId(null);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Error al eliminar registro';
+        toast.error(message);
+      }
     }
   };
 
