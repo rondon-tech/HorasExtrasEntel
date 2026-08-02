@@ -102,6 +102,44 @@ if (configError) {
       res.status(503).json({ status: 'unhealthy', error: err.message });
     }
   });
+
+  app.get('/api/debug/db-check', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      
+      const tableCheck = await pool.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'records' 
+        ORDER BY ordinal_position
+      `);
+      
+      const userCheck = await pool.query(
+        'SELECT id, username, role FROM users WHERE id = $1',
+        [userId]
+      );
+      
+      const recordCount = await pool.query(
+        'SELECT COUNT(*)::int as count FROM records WHERE user_id = $1',
+        [userId]
+      );
+      
+      res.json({
+        userId,
+        user: userCheck.rows[0] || null,
+        recordsTable: tableCheck.rows,
+        userRecordCount: recordCount.rows[0]?.count || 0,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      res.status(500).json({ 
+        error: err.message, 
+        code: err.code,
+        detail: err.detail,
+        stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined 
+      });
+    }
+  });
 }
 
 app.use(errorHandler);

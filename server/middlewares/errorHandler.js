@@ -1,18 +1,30 @@
 import { logger } from '../utils/logger.js';
 
 export const errorHandler = (err, req, res, next) => {
-  // Log the error using winston. It will log the stack trace automatically if we pass the error object.
-  logger.error(err);
-
-  // Determine the status code
   const statusCode = err.status || 500;
   
-  // Create a safe error response. Never leak stack traces in production.
+  const errorDetails = {
+    message: err.message,
+    code: err.code,
+    detail: err.detail,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    body: req.body,
+    userId: req.user?.id,
+  };
+
+  logger.error('Request error:', errorDetails);
+
   const errorResponse = {
     error: 'Error interno del servidor',
     message: process.env.NODE_ENV === 'production' 
       ? 'Ocurrió un error inesperado. El equipo técnico ha sido notificado.'
-      : err.message
+      : err.message,
+    ...(process.env.NODE_ENV !== 'production' && { 
+      code: err.code, 
+      detail: err.detail 
+    }),
   };
 
   res.status(statusCode).json(errorResponse);
