@@ -7,7 +7,7 @@ const GLOBAL_ADMIN_ID = '00000000-0000-0000-0000-000000000001';
 export const userRepository = {
   async findAll({ page = 1, limit = 20 } = {}) {
     const offset = (page - 1) * limit;
-    const [[usersResult], [countResult]] = await Promise.all([
+    const [usersResult, countResult] = await Promise.all([
       pool.query(
         `SELECT id, username, role, password_change_required, created_at, updated_at
          FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
