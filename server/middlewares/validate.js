@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import xss from 'xss';
+import { logger } from '../utils/logger.js';
 
 /**
  * Recursively sanitize string values in an object or array.
@@ -27,29 +28,31 @@ function sanitizeStrings(data) {
 }
 
 export const validate = (schema) => (req, res, next) => {
-  try {
-    const parsed = schema.parse({
+  const result = schema.safeParse({
+    body: req.body,
+    query: req.query,
+    params: req.params,
+  });
+
+  if (!result.success) {
+    logger.warn('Validation failed:', {
+      path: req.path,
+      method: req.method,
+      errors: result.error.errors,
       body: req.body,
-      query: req.query,
-      params: req.params,
     });
-
-    // Sanitize all string values to prevent XSS via stored data
-    const sanitized = sanitizeStrings(parsed);
-
-    // Overwrite the parsed fields with sanitized versions so controllers receive clean data
-    req.body = sanitized.body;
-    req.query = sanitized.query;
-    req.params = sanitized.params;
-
-    next();
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        details: err.errors,
-      });
-    }
-    return res.status(500).json({ error: 'Internal Server Error during validation' });
+    
+    return res.status(400).json({
+      error: 'Validation Error',
+      details: result.error.errors,
+    });
   }
+
+  const sanitized = sanitizeStrings(result.data);
+
+  req.body = sanitized.body;
+  req.query = sanitized.query;
+  req.params = sanitized.params;
+
+  next();
 };
