@@ -9,6 +9,7 @@ export const queryKeys = {
   params: ['params'] as const,
   records: ['records'] as const,
   expenses: ['expenses'] as const,
+  profile: ['profile'] as const,
   payroll: (year: number, month: number) => ['payroll', year, month] as const,
 };
 
@@ -141,5 +142,13 @@ export function useChangePassword() {
   return useMutation({
     mutationFn: (data: { oldPassword: string; newPassword: string }) =>
       apiClient.post('/change-password', data).then(r => r.data),
+  });
+}
+
+export function useProfileQuery() {
+  return useQuery({
+    queryKey: queryKeys.profile,
+    queryFn: () => apiClient.get('/profile').then(r => r.data),
+    staleTime: 5 * 60 * 1000,
   });
 }

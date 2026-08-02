@@ -67,7 +67,8 @@ p {
 
 /* Layout */
 .app-container {
-  max-width: 600px;
+  max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
   min-height: 100vh;
   display: flex;
@@ -75,6 +76,12 @@ p {
   position: relative;
   background-color: var(--bg-primary);
   box-shadow: 0 0 40px rgba(0,0,0,0.5);
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    max-width: 100%;
+  }
 }
 
 .content-area {
@@ -199,7 +206,7 @@ select.form-control {
   position: fixed;
   bottom: 0;
   width: 100%;
-  max-width: 600px;
+  max-width: 1200px;
   background: rgba(10, 14, 23, 0.9);
   backdrop-filter: blur(10px);
   border-top: 1px solid rgba(255,255,255,0.05);
@@ -648,4 +655,76 @@ select.form-control {
   outline: none;
   border-color: var(--accent-blue);
   box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.25);
+}
+
+.dashboard-greeting {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  opacity: 0.85;
+  margin-bottom: 1rem;
+}
+
+.masonry-grid {
+  display: flex;
+  margin-left: -1rem;
+  width: auto;
+}
+
+.masonry-grid_column {
+  padding-left: 1rem;
+  background-clip: padding-box;
+}
+
+.masonry-grid_column > .glass-card {
+  margin-bottom: 1rem;
+}
+
+.dashboard-card-hero {
+  position: relative;
+  cursor: pointer;
+  text-align: center;
+}
+
+.dashboard-card-clickable {
+  cursor: pointer;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.dashboard-card-clickable:hover {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.dashboard-card-actions {
+  grid-column: 1 / -1;
+}
+
+.text-purple {
+  color: #a855f7;
+}
+
+.text-blue {
+  color: var(--accent-blue);
+}
+
+.uppercase {
+  text-transform: uppercase;
+}
+
+.tracking-wider {
+  letter-spacing: 0.05em;
+}
+
+.gap-1 {
+  gap: 0.25rem;
+}
+
+.text-4xl {
+  font-size: 2.25rem;
+}
+
+@media (max-width: 768px) {
+  .bottom-nav {
+    max-width: 100%;
+  }
 }
