@@ -1,19 +1,19 @@
 import React from 'react';
 
-interface DashboardCardProps {
+interface BentoCardProps {
   title?: string;
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
 }
 
-const DashboardCard: React.FC<DashboardCardProps> = ({ title, children, className = '', onClick }) => {
+const BentoCard: React.FC<BentoCardProps> = ({ title, children, className = '', onClick }) => {
   return (
-    <div className={`glass-card ${className}`} onClick={onClick}>
+    <div className={`glass-card bento-card ${className}`} onClick={onClick}>
       {title && <h3 className="text-sm text-secondary uppercase font-bold tracking-wider mb-3">{title}</h3>}
       {children}
     </div>
   );
 };
 
-export default DashboardCard;
+export default BentoCard;

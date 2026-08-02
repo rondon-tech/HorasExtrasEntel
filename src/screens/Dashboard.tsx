@@ -4,11 +4,10 @@ import { useAppContext } from '../context/AppContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Download, Share2 } from 'lucide-react';
-import Masonry from 'react-masonry-css';
 import { formatCLP } from '../utils/format';
 import { usePayrollPDF } from '../hooks/usePayrollPDF';
 import { useProfileQuery } from '../hooks/useApi';
-import DashboardCard from '../components/DashboardCard';
+import BentoCard from '../components/BentoCard';
 import QuickAddModal from '../components/QuickAddModal';
 import { Spinner } from '../components/Spinner';
 
@@ -50,12 +49,6 @@ const Dashboard: React.FC = () => {
     setCurrentMonth(newDate);
   };
 
-  const masonryBreakpoints = {
-    default: 3,
-    1100: 2,
-    700: 1,
-  };
-
   return (
     <div>
       {isLoading && <Spinner />}
@@ -81,12 +74,8 @@ const Dashboard: React.FC = () => {
         <div className="badge badge-green">Recalculado</div>
       </div>
 
-      <Masonry
-        breakpointCols={masonryBreakpoints}
-        className="masonry-grid"
-        columnClassName="masonry-grid_column"
-      >
-        <DashboardCard className="dashboard-card-hero">
+      <div className="bento-grid">
+        <BentoCard className="bento-col-2 bento-row-2 bento-card-hero">
           <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.5rem' }}>
             <button onClick={(e) => { e.stopPropagation(); sharePDF(); }} className="btn-icon" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--accent-blue)', padding: '0.4rem' }} title="Compartir Liquidación">
               <Share2 size={16} />
@@ -95,10 +84,7 @@ const Dashboard: React.FC = () => {
               <Download size={16} />
             </button>
           </div>
-          <div 
-            style={{ cursor: 'pointer' }}
-            onClick={() => navigate('/simulator')}
-          >
+          <div style={{ cursor: 'pointer' }} onClick={() => navigate('/simulator')}>
             <p className="text-sm text-secondary uppercase font-bold tracking-wider mb-2">Líquido a Pagar ({formattedMonth})</p>
             <h1 className="text-4xl font-bold text-gradient mb-2">
               {formatCLP(liquidoAPagar)}
@@ -107,34 +93,34 @@ const Dashboard: React.FC = () => {
               Toca aquí para ver detalle completo &rarr;
             </p>
           </div>
-        </DashboardCard>
+        </BentoCard>
 
-        <DashboardCard title="Horas Extras">
+        <BentoCard title="Horas Extras" className="bento-col-2 bento-row-1">
           <p className="stat-value text-orange">{totalExtraHoursThisMonth.toFixed(1)} <span className="text-sm">hrs</span></p>
           <p className="text-xs text-muted mt-1">{formatCLP(totalExtraPayThisMonth)} imponibles</p>
-        </DashboardCard>
+        </BentoCard>
 
-        <DashboardCard title="Días Compens. Ganados">
+        <BentoCard title="Días Compens. Ganados" className="bento-col-1 bento-row-1">
           <p className="stat-value text-blue">{diasCompensatoriosGanados}</p>
           <p className="text-xs text-muted mt-1">Por feriados/domingos</p>
-        </DashboardCard>
+        </BentoCard>
 
-        <DashboardCard title="Días TAP Trabajados" className="dashboard-card-clickable" onClick={() => setQuickAddType('TAD')}>
+        <BentoCard title="Días TAP Trabajados" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setQuickAddType('TAD')}>
           <p className="stat-value text-green">{pureTadDays}</p>
           <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>+ Ingresar Disposición</p>
-        </DashboardCard>
+        </BentoCard>
 
-        <DashboardCard title="Días Contingencia" className="dashboard-card-clickable" onClick={() => setQuickAddType('Contingencia')}>
+        <BentoCard title="Días Contingencia" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setQuickAddType('Contingencia')}>
           <p className="stat-value text-purple">{contingencyDaysThisMonth}</p>
           <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>+ Ingresar Disposición</p>
-        </DashboardCard>
+        </BentoCard>
 
-        <DashboardCard title="Días Apoyo TAP">
+        <BentoCard title="Días Apoyo TAP" className="bento-col-1 bento-row-1">
           <p className="stat-value text-green">{apoyoTadDays}</p>
           <p className="text-xs text-muted mt-1">Total del mes</p>
-        </DashboardCard>
+        </BentoCard>
 
-        <DashboardCard title="Acciones Rápidas" className="dashboard-card-actions">
+        <BentoCard title="Acciones Rápidas" className="bento-col-4 bento-row-1">
           <div className="grid-2">
             <button className="btn btn-primary" onClick={() => navigate('/record')}>
               Registrar Hora
@@ -146,8 +132,8 @@ const Dashboard: React.FC = () => {
           <button className="btn btn-secondary btn-block mt-4" onClick={() => navigate('/records')}>
             Auditar Registros del Mes
           </button>
-        </DashboardCard>
-      </Masonry>
+        </BentoCard>
+      </div>
 
       <QuickAddModal 
         isOpen={quickAddType !== null} 
