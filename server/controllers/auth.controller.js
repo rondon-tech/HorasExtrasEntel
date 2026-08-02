@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { getConfig } from '../config/env.js';
 import { pool } from '../config/db.js';
 import { logAudit } from '../utils/audit.js';
+import { paramsRepository } from '../repositories/params.repository.js';
 
 const GLOBAL_ADMIN_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -40,5 +41,40 @@ export const authController = {
 
     logAudit({ action: 'LOGIN_FAIL', entity: 'users', entityId: username, changedBy: username });
     return res.status(401).json({ error: 'Credenciales inválidas' });
+  },
+
+  async register(req, res, next) {
+    try {
+      const { username, password } = req.body;
+
+      const { rows: existing } = await pool.query(
+        'SELECT id FROM users WHERE username = $1',
+        [username]
+      );
+      if (existing.length > 0) {
+        return res.status(409).json({ error: 'El nombre de usuario ya existe.' });
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(password, salt);
+
+      const { rows } = await pool.query(
+        `INSERT INTO users (id, username, password_hash, role)
+         VALUES (gen_random_uuid(), $1, $2, 'user') RETURNING id`,
+        [username, passwordHash]
+      );
+      const userId = rows[0].id;
+
+      await paramsRepository.createDefault(userId);
+
+      const { JWT_SECRET } = getConfig();
+      const token = jwt.sign({ id: userId, username, role: 'user' }, JWT_SECRET, { expiresIn: '12h' });
+
+      logAudit({ action: 'REGISTER', entity: 'users', entityId: userId, changedBy: req.user?.username, userId });
+
+      res.status(201).json({ token, userId });
+    } catch (err) {
+      next(err);
+    }
   },
 };

@@ -1,5 +1,9 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import { requireAuth } from '../middlewares/auth.js';
+import { requireRole } from '../middlewares/role.js';
+import { validate } from '../middlewares/validate.js';
+import { registerSchema } from '../schemas/auth.schema.js';
 import { authController } from '../controllers/auth.controller.js';
 
 const router = Router();
@@ -13,6 +17,16 @@ const loginLimiter = rateLimit({
   message: { error: 'Demasiados intentos de inicio de sesión. Intente de nuevo en 15 minutos.' },
 });
 
+// Rate limiting: max 3 registrations per IP per hour
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos de registro. Intente de nuevo en una hora.' },
+});
+
 router.post('/login', loginLimiter, authController.login);
+router.post('/register', requireAuth, requireRole('global_admin'), registerLimiter, validate(registerSchema), authController.register);
 
 export { router as authRouter };
