@@ -35,7 +35,7 @@ export function useRecordsQuery() {
 export function useExpensesQuery() {
   return useQuery({
     queryKey: queryKeys.expenses,
-    queryFn: () => apiClient.get('/expenses').then(r => r.data),
+    queryFn: () => apiClient.get('/expenses?limit=100').then(r => r.data.data ?? r.data),
     staleTime: 30 * 1000,
   });
 }

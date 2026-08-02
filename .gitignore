@@ -34,3 +34,5 @@ api-neon.md
 logs/ 
  
  
+.vercel
+.env*

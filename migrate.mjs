@@ -7,6 +7,7 @@
  * Uses the same DATABASE_URL from .env, validated by api/config/env.js.
  */
 
+import { execSync } from 'child_process';
 import { getConfig } from './server/config/env.js';
 import dotenv from 'dotenv';
 

@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getConfig } from '../config/env.js';
 import { pool } from '../config/db.js';
+import { logAudit } from '../utils/audit.js';
 
 export const authController = {
   async login(req, res) {
@@ -18,9 +19,11 @@ export const authController = {
         const valid = await bcrypt.compare(password, rows[0].password_hash);
         if (valid) {
           const token = jwt.sign({ username, role: rows[0].role }, JWT_SECRET, { expiresIn: '12h' });
+          logAudit({ action: 'LOGIN_OK', entity: 'users', entityId: username, changedBy: username });
           return res.json({ token });
         }
-        return res.status(401).json({ error: 'Invalid credentials' });
+        logAudit({ action: 'LOGIN_FAIL', entity: 'users', entityId: username, changedBy: username });
+        return res.status(401).json({ error: 'Credenciales inválidas' });
       }
     } catch (_err) {
       // If users table doesn't exist yet (migration not run), fall through to env fallback
@@ -29,9 +32,11 @@ export const authController = {
     // 2. Fallback: environment variable credentials (backward compat for MVP)
     if (username === ADMIN_USER && password === ADMIN_PASSWORD) {
       const token = jwt.sign({ username, role: 'admin' }, JWT_SECRET, { expiresIn: '12h' });
+      logAudit({ action: 'LOGIN_OK', entity: 'users', entityId: username, changedBy: username });
       return res.json({ token });
     }
 
-    return res.status(401).json({ error: 'Invalid credentials' });
+    logAudit({ action: 'LOGIN_FAIL', entity: 'users', entityId: username, changedBy: username });
+    return res.status(401).json({ error: 'Credenciales inválidas' });
   },
 };

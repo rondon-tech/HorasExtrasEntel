@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { X, Trash2, CalendarPlus } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAppContext } from '../context/AppContext';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface QuickAddModalProps {
   isOpen: boolean;
@@ -21,6 +23,7 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose, type }) 
     
   const [selectedDate, setSelectedDate] = useState(defaultDate);
   const [loading, setLoading] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -44,6 +47,14 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose, type }) 
 
     await addRecord(ghostRecord);
     setLoading(false);
+  };
+
+  const handleConfirmDelete = () => {
+    if (confirmDeleteId) {
+      deleteRecord(confirmDeleteId);
+      toast.success('Registro eliminado');
+      setConfirmDeleteId(null);
+    }
   };
 
   // Find all ghost records of this type for the current month
@@ -103,7 +114,7 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose, type }) 
                     <p className="font-bold text-sm m-0">{format(parseISO(r.date), "EEEE dd 'de' MMM", { locale: es })}</p>
                     <p className="text-xs text-muted m-0">{r.tarea}</p>
                   </div>
-                  <button onClick={() => deleteRecord(r.id)} className="btn-icon text-danger" style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none' }} title="Eliminar">
+                  <button onClick={() => setConfirmDeleteId(r.id)} className="btn-icon text-danger" style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none' }} title="Eliminar">
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -112,6 +123,16 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose, type }) 
           </div>
         )}
       </div>
+      <ConfirmDialog
+        isOpen={!!confirmDeleteId}
+        title="Eliminar registro"
+        message="¿Estás seguro de que quieres eliminar este registro rápido?"
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+        danger
+      />
     </div>
   );
 };

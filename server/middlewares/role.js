@@ -15,12 +15,12 @@ export function requireRole(...allowedRoles) {
     const userRole = req.user?.role;
 
     if (!userRole) {
-      return res.status(403).json({ error: 'Forbidden: No role assigned' });
+      return res.status(403).json({ error: 'Acceso denegado: Sin rol asignado' });
     }
 
     if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({
-        error: `Forbidden: Role '${userRole}' is not authorized. Required: ${allowedRoles.join(' or ')}`,
+        error: `Acceso denegado: El rol '${userRole}' no está autorizado. Se requiere: ${allowedRoles.join(' o ')}`,
       });
     }
 

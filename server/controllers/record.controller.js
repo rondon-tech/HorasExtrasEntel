@@ -1,5 +1,6 @@
 import { recordRepository } from '../repositories/record.repository.js';
 import { logAudit } from '../utils/audit.js';
+import { payrollController } from './payroll.controller.js';
 
 export const recordController = {
   async getAll(req, res, next) {
@@ -18,7 +19,8 @@ export const recordController = {
 
   async create(req, res, next) {
     try {
-      const id = await recordRepository.create(req.body);
+      const id =       await recordRepository.create(req.body);
+      payrollController.invalidateCache();
       logAudit({ action: 'INSERT', entity: 'records', entityId: id, changedBy: req.user?.username });
       res.json({ id });
     } catch (err) {
@@ -29,6 +31,7 @@ export const recordController = {
   async update(req, res, next) {
     try {
       await recordRepository.update(req.params.id, req.body);
+      payrollController.invalidateCache();
       logAudit({ action: 'UPDATE', entity: 'records', entityId: req.params.id, changedBy: req.user?.username });
       res.json({ message: 'Record updated' });
     } catch (err) {
@@ -39,6 +42,7 @@ export const recordController = {
   async remove(req, res, next) {
     try {
       await recordRepository.remove(req.params.id);
+      payrollController.invalidateCache();
       logAudit({ action: 'DELETE', entity: 'records', entityId: req.params.id, changedBy: req.user?.username });
       res.json({ message: 'Record deleted' });
     } catch (err) {

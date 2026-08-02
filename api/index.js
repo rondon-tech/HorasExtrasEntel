@@ -2,25 +2,33 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import { authRouter } from '../server/routes/auth.routes.js';
-import { pool } from '../server/config/db.js';
-import { requireAuth } from '../server/middlewares/auth.js';
+import rateLimit from 'express-rate-limit';
 import { logger } from '../server/utils/logger.js';
 import { errorHandler } from '../server/middlewares/errorHandler.js';
 import { getConfig } from '../server/config/env.js';
-import { expenseRouter } from '../server/routes/expense.routes.js';
-import { recordRouter } from '../server/routes/record.routes.js';
-import { paramsRouter } from '../server/routes/params.routes.js';
-import { payrollController } from '../server/controllers/payroll.controller.js';
+
+// Global rate limiter: 200 requests per IP per minute across all endpoints
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes. Intente de nuevo en un minuto.' },
+});
+
+// Attempt to load config early — if it fails we serve a clear error JSON
+// instead of an opaque 500 Internal Server Error from Vercel.
+let env = null;
+let configError = null;
+try {
+  env = getConfig();
+} catch (err) {
+  configError = err;
+}
 
 const app = express();
-
-// Trust the first proxy (Neon serverless / Vercel) so rate-limiting and
-// helmet headers work with the original client IP.
-// In Vercel, the deployment infrastructure provides the "x-forwarded-*" headers.
 app.set('trust proxy', 1);
-
-// Security headers via Helmet, with a Content-Security-Policy tuned to the app.
+app.use(globalLimiter);
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -33,76 +41,77 @@ app.use(helmet({
     },
   },
 }));
-
-// Gzip compression for responses > 1KB
 app.use(compression({ threshold: 1024 }));
-
-// Validate required environment variables at startup. getConfig() throws if
-// any critical variable is missing, preventing the server from running with
-// insecure hardcoded fallbacks.
-const env = getConfig();
-
-// Strict CORS: allow localhost for dev, and FRONTEND_URL for prod.
-const allowedOrigins = [
-  'http://localhost:5173',
-  env.FRONTEND_URL,
-].filter(Boolean);
-
-app.use(cors({
-  origin: function(origin, callback) {
-    // Non-browser requests (curl, Postman) or same-origin requests have no origin header.
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
-
 app.use(express.json({ limit: '1mb' }));
 
-// Log all incoming requests
-app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.url}`);
-  next();
-});
+// If critical env vars are missing, mount an emergency-only app that
+// returns a descriptive JSON error for every route.
+if (configError) {
+  app.use(cors());
+  app.all('*', (_req, res) => {
+    res.status(500).json({
+      error: 'Server configuration error',
+      message: configError.message,
+      hint: 'Set the required environment variables (JWT_SECRET, ADMIN_USER, ADMIN_PASSWORD, FRONTEND_URL) in your Vercel project settings or .env file.',
+    });
+  });
+  logger.error(`FATAL: ${configError.message}`);
+} else {
+  // Defer heavy imports until we know config is valid — avoids cascading
+  // "cannot find module" errors when the real problem is just missing env vars.
+  const authRouterModule = await import('../server/routes/auth.routes.js');
+  const { expenseRouter } = await import('../server/routes/expense.routes.js');
+  const { recordRouter } = await import('../server/routes/record.routes.js');
+  const { paramsRouter } = await import('../server/routes/params.routes.js');
+  const { payrollController } = await import('../server/controllers/payroll.controller.js');
+  const { requireAuth } = await import('../server/middlewares/auth.js');
+  const { pool } = await import('../server/config/db.js');
 
-// --- Authentication Router (rate-limited login) ---
-app.use('/api', authRouter);
+  const { authRouter } = authRouterModule;
 
-// PostgreSQL connection pool is managed by server/config/db.js.
-// It validates env vars, configures SSL, and handles idle-client errors.
+  // Strict CORS: allow localhost for dev, FRONTEND_URL for prod,
+  // and Vercel preview/git-branch deployment URLs (e.g. *.vercel.app).
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3001',
+  ].filter(Boolean);
+  if (env.FRONTEND_URL) allowedOrigins.push(env.FRONTEND_URL);
 
-// Schema migrations should be run BEFORE deploy:
-//   npm run migrate          (apply pending migrations)
-//   npm run migrate:down     (rollback last migration)
-// See migrate.mjs and server/migrations/ for details.
-// DEPRECATED: inline initDB() removed in favour of versioned migrations.
+  app.use(cors({
+    origin: function(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else if (origin.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  }));
 
-// --- Params Router ---
-app.use('/api/params', paramsRouter);
+  // Log all incoming requests
+  app.use((req, res, next) => {
+    logger.info(`${req.method} ${req.url}`);
+    next();
+  });
 
-// --- Payroll ---
-app.get('/api/payroll/:year/:month', requireAuth, payrollController.get);
+  app.use('/api', authRouter);
+  app.use('/api/params', paramsRouter);
+  app.get('/api/payroll/:year/:month', requireAuth, payrollController.get);
+  app.use('/api/records', recordRouter);
+  app.use('/api/expenses', expenseRouter);
 
-// --- Records Router ---
-app.use('/api/records', recordRouter);
+  app.get('/api/health', async (_req, res) => {
+    try {
+      await pool.query('SELECT 1');
+      res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+    } catch (err) {
+      res.status(503).json({ status: 'unhealthy', error: err.message });
+    }
+  });
+}
 
-// --- Expenses Router ---
-app.use('/api/expenses', expenseRouter);
-
-// --- Health Check ---
-app.get('/api/health', async (_req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.json({ status: 'healthy', timestamp: new Date().toISOString() });
-  } catch (err) {
-    res.status(503).json({ status: 'unhealthy', error: err.message });
-  }
-});
-
-// Mount the global error handler at the end
 app.use(errorHandler);
 
 if (!process.env.VERCEL) {

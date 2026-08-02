@@ -5,9 +5,17 @@ import { toExpenseDTO } from '../mappers/index.js';
  * Expenses Repository — PostgresSQL data access for expenses.
  */
 export const expenseRepository = {
-  async findAll() {
-    const { rows } = await pool.query('SELECT * FROM expenses ORDER BY date DESC');
+  async findAll({ limit = 50, offset = 0 } = {}) {
+    const { rows } = await pool.query(
+      'SELECT * FROM expenses ORDER BY date DESC LIMIT $1 OFFSET $2',
+      [limit, offset]
+    );
     return rows.map(toExpenseDTO);
+  },
+
+  async countTotal() {
+    const { rows } = await pool.query('SELECT COUNT(*) as count FROM expenses');
+    return Number(rows[0].count);
   },
 
   async create({ date, nemonico, description }) {

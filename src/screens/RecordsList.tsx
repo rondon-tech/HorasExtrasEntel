@@ -4,12 +4,17 @@ import { useAppContext } from '../context/AppContext';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Download, Share2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { generateRecordsPDF } from '../utils/pdfGenerator';
 import { formatCLP } from '../utils/format';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Spinner } from '../components/Spinner';
 
 const RecordsList: React.FC = () => {
   const navigate = useNavigate();
-  const { records, expenses, deleteRecord, deleteExpense, params } = useAppContext();
+  const { records, expenses, deleteRecord, deleteExpense, params, isLoading } = useAppContext();
+  
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; isRecord: boolean } | null>(null);
   
   const currentDate = new Date();
   const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -21,6 +26,18 @@ const RecordsList: React.FC = () => {
   
   const [startDate, setStartDate] = useState(format(firstDay, 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(lastDay, 'yyyy-MM-dd'));
+
+  const handleDelete = () => {
+    if (!confirmDelete) return;
+    const { id, isRecord } = confirmDelete;
+    if (isRecord) {
+      deleteRecord(id);
+    } else {
+      deleteExpense(id);
+    }
+    toast.success('Eliminado correctamente');
+    setConfirmDelete(null);
+  };
 
   const allItems = [
     ...records.map(r => ({ ...r, type: 'record' as const })),
@@ -115,6 +132,7 @@ const RecordsList: React.FC = () => {
 
   return (
     <div>
+      {isLoading && <Spinner />}
       <div className="flex-between mb-2">
         <h2 className="text-xl m-0">Auditoría Avanzada</h2>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -221,11 +239,7 @@ const RecordsList: React.FC = () => {
                     Editar
                   </button>
                   <button 
-                    onClick={() => {
-                      if (confirm('¿Estás seguro de que quieres eliminar esto?')) {
-                        isRecord ? deleteRecord(item.id) : deleteExpense(item.id);
-                      }
-                    }}
+                    onClick={() => setConfirmDelete({ id: item.id, isRecord })}
                     className="btn-icon text-sm text-danger bg-transparent border-none"
                     style={{ cursor: 'pointer' }}
                   >
@@ -237,6 +251,17 @@ const RecordsList: React.FC = () => {
           })
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={!!confirmDelete}
+        title="Eliminar registro"
+        message="¿Estás seguro de que quieres eliminar este registro? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(null)}
+        danger
+      />
     </div>
   );
 };

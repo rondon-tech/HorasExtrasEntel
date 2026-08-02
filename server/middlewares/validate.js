@@ -7,7 +7,11 @@ import xss from 'xss';
  */
 function sanitizeStrings(data) {
   if (typeof data === 'string') {
-    return xss(data);
+    try {
+      return xss(data);
+    } catch {
+      return data;
+    }
   }
   if (Array.isArray(data)) {
     return data.map(sanitizeStrings);

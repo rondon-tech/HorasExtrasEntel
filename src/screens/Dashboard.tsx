@@ -7,6 +7,7 @@ import { Download, Share2 } from 'lucide-react';
 import { formatCLP } from '../utils/format';
 import { usePayrollPDF } from '../hooks/usePayrollPDF';
 import QuickAddModal from '../components/QuickAddModal';
+import { Spinner } from '../components/Spinner';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ const Dashboard: React.FC = () => {
     setCurrentMonth,
     liquidoAPagar,
     totalExtraPayThisMonth,
+    isLoading,
     totalExtraHoursThisMonth,
     diasCompensatoriosGanados,
     pureTadDays,
@@ -42,6 +44,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div>
+      {isLoading && <Spinner />}
       <div className="flex-between mb-4">
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <select className="form-control text-sm font-bold" value={currentMonth.getMonth() + 1} onChange={handleMonthChange} style={{ padding: '0.4rem 0.5rem', width: 'auto', textTransform: 'capitalize' }}>

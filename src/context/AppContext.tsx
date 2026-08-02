@@ -64,6 +64,7 @@ interface AppContextType {
   records: DailyRecord[];
   expenses: ExpenseRecord[];
   params: MonthlyParams;
+  isLoading: boolean;
 
   addRecord: (record: Omit<DailyRecord, 'id'>) => void;
   editRecord: (id: string, record: Omit<DailyRecord, 'id'>) => void;
@@ -151,6 +152,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const expenses: ExpenseRecord[] = isAuthenticated ? (expensesQuery.data ?? []) : [];
   const params: MonthlyParams = isAuthenticated ? (paramsQuery.data ?? defaultParams) : defaultParams;
 
+  const isLoading = isAuthenticated && (
+    recordsQuery.isLoading ||
+    expensesQuery.isLoading ||
+    paramsQuery.isLoading
+  );
+
   const p = (isAuthenticated ? payrollQuery.data : {}) || {};
 
   const value = useMemo<AppContextType>(() => ({
@@ -166,6 +173,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     editExpense,
     deleteExpense,
     updateParams,
+    isLoading,
     totalExtraHoursThisMonth: p.totalExtraHoursThisMonth || 0,
     extraHourRate: p.extraHourRate || 0,
     totalExtraPayThisMonth: p.totalExtraPayThisMonth || 0,

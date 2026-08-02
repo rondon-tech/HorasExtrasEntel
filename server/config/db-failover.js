@@ -80,15 +80,23 @@ class PoolManager {
     if (this._initialized) return;
     this._initialized = true;
 
+    const sslConfig = process.env.NODE_ENV === 'production'
+      ? { rejectUnauthorized: true }
+      : { rejectUnauthorized: false };
+
     this._primary = new Pool({
       connectionString: this._primaryUrl,
-      ssl: { rejectUnauthorized: false },
+      ssl: sslConfig,
+      connectionTimeoutMillis: 10000,
+      statement_timeout: 30000,
     });
 
     if (this._fallbackUrl) {
       this._fallback = new Pool({
         connectionString: this._fallbackUrl,
-        ssl: { rejectUnauthorized: false },
+        ssl: sslConfig,
+        connectionTimeoutMillis: 10000,
+        statement_timeout: 30000,
       });
     }
 
@@ -109,7 +117,7 @@ class PoolManager {
   /**
    * Execute a query on the currently active pool.
    * If a connection-level error occurs on the primary and a fallback is
-   * configured, the manager may switch pools automatically.
+   * configured, the manager switches pools and retries the query once.
    */
   async query(text, params) {
     this.init();
@@ -125,6 +133,14 @@ class PoolManager {
         );
         if (this._failures >= FAILURE_THRESHOLD) {
           this._switchToFallback();
+          // Retry the query on the fallback pool now that we switched
+          try {
+            logger.info('PoolManager: retrying query on FALLBACK');
+            const result = await this._active.query(text, params);
+            return result;
+          } catch (retryErr) {
+            throw retryErr;
+          }
         }
       }
       throw err;
@@ -188,11 +204,26 @@ class PoolManager {
 }
 
 // ---------------------------------------------------------------------------
-// Singleton instance
+// Singleton instance (lazy — defers config loading until first query)
 // ---------------------------------------------------------------------------
 import { getConfig } from './env.js';
 
-const env = getConfig();
-const fallbackUrl = process.env.DATABASE_URL_FALLBACK || '';
+let _poolManager = null;
 
-export const poolManager = new PoolManager(env.DATABASE_URL, fallbackUrl);
+function _getPoolManager() {
+  if (!_poolManager) {
+    const env = getConfig();
+    const fallbackUrl = process.env.DATABASE_URL_FALLBACK || '';
+    _poolManager = new PoolManager(env.DATABASE_URL, fallbackUrl);
+  }
+  return _poolManager;
+}
+
+export const poolManager = {
+  get primary() { return _poolManager?.primary ?? null; },
+  get fallback() { return _poolManager?.fallback ?? null; },
+  get isOnFallback() { return _poolManager?.isOnFallback ?? false; },
+  query(text, params) {
+    return _getPoolManager().query(text, params);
+  },
+};

@@ -3,9 +3,10 @@ import { useAppContext } from '../context/AppContext';
 import { format, subMonths, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import toast from 'react-hot-toast';
+import { Spinner } from '../components/Spinner';
 
 const History: React.FC = () => {
-  const { currentMonth, setCurrentMonth, params, updateParams, extraHourRate } = useAppContext();
+  const { currentMonth, setCurrentMonth, params, updateParams, extraHourRate, isLoading } = useAppContext();
   const [showConfig, setShowConfig] = useState(false);
   const [localParams, setLocalParams] = useState(params);
 
@@ -26,6 +27,7 @@ const History: React.FC = () => {
 
   return (
     <div>
+      {isLoading && <Spinner />}
       <h2 className="mb-6 text-xl">Historial y Configuración</h2>
 
       <div className="glass-card mb-6 flex-between">

@@ -9,9 +9,9 @@ export const errorHandler = (err, req, res, next) => {
   
   // Create a safe error response. Never leak stack traces in production.
   const errorResponse = {
-    error: 'Internal Server Error',
+    error: 'Error interno del servidor',
     message: process.env.NODE_ENV === 'production' 
-      ? 'An unexpected error occurred. Our engineers have been notified.'
+      ? 'Ocurrió un error inesperado. El equipo técnico ha sido notificado.'
       : err.message
   };
 

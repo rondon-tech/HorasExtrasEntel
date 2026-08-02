@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Home, CalendarPlus, History as HistoryIcon, Sun, Moon, PieChart, List, LogOut } from 'lucide-react';
 import Login from './screens/Login';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { HealthBanner } from './components/HealthBanner';
 import { useAuth } from './context/AuthContext';
 
 const Dashboard = lazy(() => import('./screens/Dashboard'));
@@ -51,11 +52,12 @@ function Layout() {
   const isIngresarActive = activeTab === 'record' || activeTab === 'expenses';
 
   if (!isAuthenticated) {
-    return <Login />;
+    return <ErrorBoundary><Login /></ErrorBoundary>;
   }
 
   return (
     <div className="app-container">
+      <HealthBanner />
       <header className="flex-between" style={{ padding: '1.5rem 1.5rem 0' }}>
         <div className="font-bold text-xs text-secondary tracking-wider uppercase">Entel Horas Extras</div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -110,7 +112,11 @@ function Layout() {
 }
 
 function App() {
-  return <Layout />;
+  return (
+    <ErrorBoundary>
+      <Layout />
+    </ErrorBoundary>
+  );
 }
 
 export default App;

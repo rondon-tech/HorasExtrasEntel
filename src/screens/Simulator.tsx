@@ -6,6 +6,7 @@ import { es } from 'date-fns/locale';
 import { ArrowLeft, Download, Share2 } from 'lucide-react';
 import { usePayrollPDF } from '../hooks/usePayrollPDF';
 import { formatCLP } from '../utils/format';
+import { Spinner } from '../components/Spinner';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 
 const Simulator: React.FC = () => {
@@ -26,7 +27,8 @@ const Simulator: React.FC = () => {
     montoAFP,
     montoSalud,
     montoCesantia,
-    params
+    params,
+    isLoading
   } = appContextData;
   const { download: downloadPDF, share: sharePDF } = usePayrollPDF(appContextData, currentMonth);
 
@@ -53,6 +55,7 @@ const Simulator: React.FC = () => {
 
   return (
     <div>
+      {isLoading && <Spinner />}
       <div className="flex-between mb-4">
           <button className="btn-icon" onClick={() => navigate('/')}>
           <ArrowLeft size={24} />

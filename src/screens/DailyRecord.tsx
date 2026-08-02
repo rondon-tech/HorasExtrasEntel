@@ -4,13 +4,14 @@ import toast from 'react-hot-toast';
 import { useAppContext, type DayType } from '../context/AppContext';
 import { format } from 'date-fns';
 import { TAREAS_OPTIONS, TAREA_PLACEHOLDER } from '../constants/tasks';
+import { Spinner } from '../components/Spinner';
 
 const dayTypes: DayType[] = ['Normal', 'TAD', 'TAD Apoyo'];
 
 const DailyRecord: React.FC = () => {
   const { id: editingId } = useParams<{ id?: string }>();
   const navigate = useNavigate();
-  const { records, addRecord, editRecord } = useAppContext();
+  const { records, addRecord, editRecord, isLoading } = useAppContext();
   
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [dayType, setDayType] = useState<DayType>('Normal');
@@ -107,6 +108,7 @@ const DailyRecord: React.FC = () => {
 
   return (
     <div>
+      {isLoading && <Spinner />}
       <h2 className="mb-6 text-xl">{editingId ? 'Editar Registro' : 'Registro Diario de Actividad'}</h2>
       
       <form onSubmit={handleSubmit} className="glass-card">

@@ -5,11 +5,12 @@ import { useAppContext } from '../context/AppContext';
 import { format } from 'date-fns';
 import { TAREAS_OPTIONS, TAREA_PLACEHOLDER, NEMONICOS } from '../constants/tasks';
 import { formatCLP } from '../utils/format';
+import { Spinner } from '../components/Spinner';
 
 const Expenses: React.FC = () => {
   const { id: editingId } = useParams<{ id?: string }>();
   const navigate = useNavigate();
-  const { expenses, params, addExpense, editExpense } = useAppContext();
+  const { expenses, params, addExpense, editExpense, isLoading } = useAppContext();
   
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [nemonico, setNemonico] = useState('SA575');
@@ -54,6 +55,7 @@ const Expenses: React.FC = () => {
 
   return (
     <div>
+      {isLoading && <Spinner />}
       <h2 className="mb-6 text-xl">{editingId ? 'Editar Viático' : 'Módulo de Viáticos (Bono Gestión)'}</h2>
       
       <form onSubmit={handleSubmit} className="glass-card mb-6">

@@ -1,6 +1,7 @@
 import { paramsRepository } from '../repositories/params.repository.js';
 import { paramsUpdateToDb } from '../mappers/index.js';
 import { logAudit } from '../utils/audit.js';
+import { payrollController } from './payroll.controller.js';
 
 export const paramsController = {
   async get(_req, res, next) {
@@ -20,6 +21,7 @@ export const paramsController = {
     try {
       const values = paramsUpdateToDb(req.body);
       await paramsRepository.update(values);
+      payrollController.invalidateCache();
       logAudit({ action: 'UPDATE', entity: 'params', entityId: '1', changedBy: req.user?.username });
       res.json({ message: 'Params updated' });
     } catch (err) {
