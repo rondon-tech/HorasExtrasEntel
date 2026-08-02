@@ -17,8 +17,8 @@ const RecordsList: React.FC = () => {
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; isRecord: boolean } | null>(null);
   
   const currentDate = new Date();
-  const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-  const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+  const firstDay = new Date(currentDate.getFullYear(), 0, 1);
+  const lastDay = new Date(currentDate.getFullYear(), 11, 31);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'record' | 'expense' | 'feriado' | 'tap' | 'contingencia'>('all');

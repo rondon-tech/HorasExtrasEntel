@@ -28,7 +28,7 @@ export function useParamsQuery() {
 export function useRecordsQuery() {
   return useQuery({
     queryKey: queryKeys.records,
-    queryFn: () => apiClient.get('/records').then(r => r.data.data ?? r.data),
+    queryFn: () => apiClient.get('/records?limit=100').then(r => r.data.data ?? r.data),
     staleTime: 30 * 1000,
   });
 }
