@@ -5,6 +5,7 @@ import { getConfig } from '../config/env.js';
 import { pool } from '../config/db.js';
 import { logAudit } from '../utils/audit.js';
 import { paramsRepository } from '../repositories/params.repository.js';
+import { userRepository } from '../repositories/user.repository.js';
 import { emailService } from '../services/email.service.js';
 
 const GLOBAL_ADMIN_ID = '00000000-0000-0000-0000-000000000001';
@@ -59,20 +60,33 @@ export const authController = {
 
   async register(req, res, next) {
     try {
-      const { username, password } = req.body;
+      const { username, password, firstName, lastName, email, phone } = req.body;
 
       if (!username || typeof username !== 'string' || username.trim().length < 3 || username.trim().length > 100) {
         return res.status(400).json({ error: 'El usuario debe tener entre 3 y 100 caracteres.' });
+      }
+      if (!firstName || typeof firstName !== 'string' || !firstName.trim()) {
+        return res.status(400).json({ error: 'El nombre es requerido.' });
+      }
+      if (!lastName || typeof lastName !== 'string' || !lastName.trim()) {
+        return res.status(400).json({ error: 'El apellido es requerido.' });
+      }
+      if (!email || typeof email !== 'string' || !email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: 'El email es requerido y debe tener formato válido.' });
       }
 
       const sanitizedUser = username.trim();
       const tempPassword = (password && typeof password === 'string' && password.length >= 6)
         ? password
         : generateTempPassword();
-
       if (password && typeof password === 'string' && (password.length < 6 || password.length > 128)) {
         return res.status(400).json({ error: 'La contraseña debe tener entre 6 y 128 caracteres.' });
       }
+
+      const sanitizedFirstName = firstName.trim().slice(0, 100);
+      const sanitizedLastName = lastName.trim().slice(0, 100);
+      const sanitizedEmail = email.trim().slice(0, 255);
+      const sanitizedPhone = (phone && typeof phone === 'string') ? phone.trim().slice(0, 20) : '000000000';
 
       const { rows: existing } = await pool.query(
         'SELECT id FROM users WHERE username = $1',
@@ -86,15 +100,16 @@ export const authController = {
       const passwordHash = await bcrypt.hash(tempPassword, salt);
 
       const { rows } = await pool.query(
-        `INSERT INTO users (id, username, password_hash, role, password_change_required)
-         VALUES (gen_random_uuid(), $1, $2, 'user', true) RETURNING id`,
-        [sanitizedUser, passwordHash]
+        `INSERT INTO users (id, username, password_hash, role, password_change_required,
+           first_name, last_name, email, phone)
+         VALUES (gen_random_uuid(), $1, $2, 'user', true, $3, $4, $5, $6) RETURNING id`,
+        [sanitizedUser, passwordHash, sanitizedFirstName, sanitizedLastName, sanitizedEmail, sanitizedPhone]
       );
       const userId = rows[0].id;
 
       await paramsRepository.createDefault(userId);
 
-      emailService.sendWelcomeEmail(sanitizedUser, tempPassword).catch(() => {});
+      emailService.sendWelcomeEmail(sanitizedEmail, sanitizedUser, tempPassword).catch(() => {});
 
       const { JWT_SECRET } = getConfig();
       const token = jwt.sign(
@@ -154,6 +169,43 @@ export const authController = {
       logAudit({ action: 'PASSWORD_CHANGE', entity: 'users', entityId: userId, changedBy: rows[0].username, userId });
 
       res.json({ token });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async profile(req, res, next) {
+    try {
+      const user = await userRepository.findById(req.user.id);
+      if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
+      res.json(user);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async updateProfile(req, res, next) {
+    try {
+      const { firstName, lastName, email, phone } = req.body;
+
+      if (!firstName || typeof firstName !== 'string' || !firstName.trim()) {
+        return res.status(400).json({ error: 'El nombre es requerido.' });
+      }
+      if (!lastName || typeof lastName !== 'string' || !lastName.trim()) {
+        return res.status(400).json({ error: 'El apellido es requerido.' });
+      }
+      if (!email || typeof email !== 'string' || !email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: 'El email es requerido y debe tener formato válido.' });
+      }
+
+      await userRepository.updateProfile(req.user.id, {
+        firstName: firstName.trim().slice(0, 100),
+        lastName: lastName.trim().slice(0, 100),
+        email: email.trim().slice(0, 255),
+        phone: (phone && typeof phone === 'string') ? phone.trim().slice(0, 20) : '000000000',
+      });
+
+      res.json({ message: 'Perfil actualizado correctamente.' });
     } catch (err) {
       next(err);
     }

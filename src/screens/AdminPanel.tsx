@@ -13,6 +13,9 @@ interface User {
   username: string;
   role: string;
   password_change_required: boolean;
+  first_name: string;
+  last_name: string;
+  email: string;
   created_at: string;
 }
 
@@ -100,7 +103,9 @@ const AdminPanel: React.FC = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <th style={thStyle}>Nombre Completo</th>
                   <th style={thStyle}>Usuario</th>
+                  <th style={thStyle}>Email</th>
                   <th style={thStyle}>Rol</th>
                   <th style={thStyle}>Creado</th>
                   <th style={thStyle}>Estado</th>
@@ -110,6 +115,9 @@ const AdminPanel: React.FC = () => {
               <tbody>
                 {users.map(user => (
                   <tr key={user.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td style={tdStyle}>
+                      <span className="font-bold text-sm">{user.first_name} {user.last_name}</span>
+                    </td>
                     <td style={tdStyle}>
                       <div className="flex-center" style={{ gap: '0.5rem', justifyContent: 'flex-start' }}>
                         <div style={{
@@ -121,11 +129,14 @@ const AdminPanel: React.FC = () => {
                         }}>
                           {user.username.charAt(0).toUpperCase()}
                         </div>
-                        <span className="font-bold">{user.username}</span>
-                      </div>
-                    </td>
-                    <td style={tdStyle}>
-                      <span style={{
+                       <span className="font-bold">{user.username}</span>
+                        </div>
+                      </td>
+                      <td style={tdStyle}>
+                        <span className="text-xs text-secondary">{user.email}</span>
+                      </td>
+                      <td style={tdStyle}>
+                        <span style={{
                         padding: '0.15rem 0.5rem', borderRadius: '1rem', fontSize: '0.7rem',
                         fontWeight: 600, textTransform: 'uppercase',
                         background: user.role === 'global_admin' ? 'rgba(16,185,129,0.15)' : 'rgba(0,102,255,0.1)',
@@ -171,7 +182,7 @@ const AdminPanel: React.FC = () => {
                 ))}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-muted)' }}>
                       <Users size={20} style={{ marginBottom: '0.5rem' }} />
                       <p>No hay usuarios registrados</p>
                     </td>

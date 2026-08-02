@@ -16,7 +16,7 @@ interface AuthContextType {
   role: string | null;
   passwordChangeRequired: boolean;
   login: (token: string) => void;
-  register: (username: string, password?: string) => Promise<void>;
+  register: (username: string, password?: string, profileData?: { firstName: string; lastName: string; email: string; phone?: string }) => Promise<void>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   logout: () => void;
 }
@@ -62,8 +62,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setToken(newToken);
   }, []);
 
-  const register = useCallback(async (username: string, password?: string) => {
-    const response = await apiClient.post('/register', { username, password });
+  const register = useCallback(async (username: string, password?: string, profileData?: { firstName: string; lastName: string; email: string; phone?: string }) => {
+    const response = await apiClient.post('/register', {
+      username,
+      password,
+      ...(profileData || {}),
+    });
     if (response.data.token) {
       setToken(response.data.token);
     }

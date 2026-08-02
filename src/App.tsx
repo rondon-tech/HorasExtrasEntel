@@ -16,6 +16,7 @@ const RecordsList = lazy(() => import('./screens/RecordsList'));
 const AdminPanel = lazy(() => import('./screens/AdminPanel'));
 const Register = lazy(() => import('./screens/Register'));
 const ChangePassword = lazy(() => import('./screens/ChangePassword'));
+const Profile = lazy(() => import('./screens/Profile'));
 
 // Map URL paths to tab keys (used for bottom-nav active state)
 const pathToTab: Record<string, string> = {
@@ -68,7 +69,14 @@ function Layout() {
     <div className="app-container">
       <HealthBanner />
       <header className="flex-between" style={{ padding: '1.5rem 1.5rem 0' }}>
-        <div className="font-bold text-xs text-secondary tracking-wider uppercase">Entel Horas Extras</div>
+        <div
+          className="font-bold text-xs text-secondary tracking-wider uppercase"
+          style={{ cursor: 'pointer' }}
+          onClick={() => navigate('/profile')}
+          title="Ver perfil"
+        >
+          Entel Horas Extras
+        </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <AdminGuard>
             <button
@@ -110,6 +118,7 @@ function Layout() {
           <Route path="/settings" element={<ErrorBoundary><History /></ErrorBoundary>} />
           <Route path="/register" element={<ErrorBoundary><Register /></ErrorBoundary>} />
           <Route path="/admin" element={<ErrorBoundary><AdminPanel /></ErrorBoundary>} />
+          <Route path="/profile" element={<ErrorBoundary><Profile /></ErrorBoundary>} />
         </Routes>
         </Suspense>
       </div>
