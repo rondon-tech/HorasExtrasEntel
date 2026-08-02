@@ -17,36 +17,39 @@ export const queryKeys = {
 // Queries (read)
 // ---------------------------------------------------------------------------
 
-export function useParamsQuery() {
+export function useParamsQuery(enabled = true) {
   return useQuery({
     queryKey: queryKeys.params,
     queryFn: () => apiClient.get('/params').then(r => r.data),
     staleTime: 5 * 60 * 1000, // 5 min
+    enabled,
   });
 }
 
-export function useRecordsQuery() {
+export function useRecordsQuery(enabled = true) {
   return useQuery({
     queryKey: queryKeys.records,
     queryFn: () => apiClient.get('/records?limit=100').then(r => r.data.data ?? r.data),
     staleTime: 30 * 1000,
+    enabled,
   });
 }
 
-export function useExpensesQuery() {
+export function useExpensesQuery(enabled = true) {
   return useQuery({
     queryKey: queryKeys.expenses,
     queryFn: () => apiClient.get('/expenses?limit=100').then(r => r.data.data ?? r.data),
     staleTime: 30 * 1000,
+    enabled,
   });
 }
 
-export function usePayrollQuery(year: number, month: number) {
+export function usePayrollQuery(year: number, month: number, enabled = true) {
   return useQuery({
     queryKey: queryKeys.payroll(year, month),
     queryFn: () => apiClient.get(`/payroll/${year}/${month}`).then(r => r.data),
     staleTime: 5 * 60 * 1000,
-    enabled: !!year && !!month,
+    enabled: enabled && !!year && !!month,
   });
 }
 

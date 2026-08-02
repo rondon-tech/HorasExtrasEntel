@@ -1,6 +1,7 @@
 import { recordRepository } from '../repositories/record.repository.js';
 import { logAudit } from '../utils/audit.js';
 import { payrollController } from './payroll.controller.js';
+import { logger } from '../utils/logger.js';
 
 export const recordController = {
   async getAll(req, res, next) {
@@ -21,11 +22,20 @@ export const recordController = {
   async create(req, res, next) {
     try {
       const userId = req.user.id;
+      logger.info('Creating record', { userId, body: req.body });
       const id = await recordRepository.create(userId, req.body);
       payrollController.invalidateCache();
       logAudit({ action: 'INSERT', entity: 'records', entityId: id, changedBy: req.user?.username, userId });
       res.json({ id });
     } catch (err) {
+      logger.error('Failed to create record', {
+        userId: req.user?.id,
+        body: req.body,
+        error: err.message,
+        code: err.code,
+        detail: err.detail,
+        stack: err.stack,
+      });
       next(err);
     }
   },

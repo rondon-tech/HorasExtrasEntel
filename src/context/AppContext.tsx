@@ -121,14 +121,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const { isAuthenticated } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // React Query hooks — manage server state, cache, and invalidation automatically
-  const paramsQuery = useParamsQuery();
-  const recordsQuery = useRecordsQuery();
-  const expensesQuery = useExpensesQuery();
+  // React Query hooks — disabled when not authenticated
+  const paramsQuery = useParamsQuery(isAuthenticated);
+  const recordsQuery = useRecordsQuery(isAuthenticated);
+  const expensesQuery = useExpensesQuery(isAuthenticated);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth() + 1;
-  const payrollQuery = usePayrollQuery(year, month);
+  const payrollQuery = usePayrollQuery(year, month, isAuthenticated);
 
   const createRecord = useCreateRecord();
   const updateRecord = useUpdateRecord();
