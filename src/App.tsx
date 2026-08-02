@@ -44,7 +44,7 @@ function Layout() {
     { tab: 'records',    path: '/records',    icon: List,          label: 'Registros', short: 'records'   },
     { tab: 'record',     path: '/record',     icon: CalendarPlus,  label: 'Ingresar',  short: 'record'    },
     { tab: 'simulator',  path: '/simulator',  icon: PieChart,      label: 'Reporte',   short: 'simulator' },
-    { tab: 'history',    path: '/settings',   icon: HistoryIcon,   label: 'Ajustes',   short: 'history'   },
+    { tab: 'history',    path: '/settings',   icon: HistoryIcon,   label: 'Configuración',   short: 'history'   },
   ];
 
   const isActive = (tab: string) => activeTab === tab;

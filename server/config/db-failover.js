@@ -134,13 +134,9 @@ class PoolManager {
         if (this._failures >= FAILURE_THRESHOLD) {
           this._switchToFallback();
           // Retry the query on the fallback pool now that we switched
-          try {
-            logger.info('PoolManager: retrying query on FALLBACK');
-            const result = await this._active.query(text, params);
-            return result;
-          } catch (retryErr) {
-            throw retryErr;
-          }
+          logger.info('PoolManager: retrying query on FALLBACK');
+          const result = await this._active.query(text, params);
+          return result;
         }
       }
       throw err;

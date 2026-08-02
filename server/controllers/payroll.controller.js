@@ -10,18 +10,19 @@ export const payrollController = {
   async get(req, res, next) {
     try {
       const { year, month } = req.params;
-      const cacheKey = `${year}-${month}`;
+      const userId = req.user.id;
+      const cacheKey = `${userId}-${year}-${month}`;
 
       const cached = payrollCache.get(cacheKey);
       if (cached && cached.expires > Date.now()) {
         return res.json(cached.data);
       }
 
-      const paramsRow = await paramsRepository.findFirstRaw();
+      const paramsRow = await paramsRepository.findFirstRaw(userId);
       if (!paramsRow) return res.status(500).json({ error: 'Params missing' });
 
-      const records = await recordRepository.findByMonth(year, month);
-      const expenses = await expenseRepository.findByMonth(year, month);
+      const records = await recordRepository.findByMonth(userId, year, month);
+      const expenses = await expenseRepository.findByMonth(userId, year, month);
 
       const payrollSummary = calculatePayroll(records, expenses, paramsRow);
 

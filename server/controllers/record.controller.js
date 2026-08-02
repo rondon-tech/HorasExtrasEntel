@@ -7,9 +7,10 @@ export const recordController = {
     try {
       const limit = Math.min(Number(req.query.limit) || 50, 100);
       const offset = Math.max(Number(req.query.offset) || 0, 0);
+      const userId = req.user.id;
       const [records, total] = await Promise.all([
-        recordRepository.findAll({ limit, offset }),
-        recordRepository.countTotal(),
+        recordRepository.findAll(userId, { limit, offset }),
+        recordRepository.countTotal(userId),
       ]);
       res.json({ data: records, total, limit, offset });
     } catch (err) {
@@ -19,9 +20,10 @@ export const recordController = {
 
   async create(req, res, next) {
     try {
-      const id =       await recordRepository.create(req.body);
+      const userId = req.user.id;
+      const id = await recordRepository.create(userId, req.body);
       payrollController.invalidateCache();
-      logAudit({ action: 'INSERT', entity: 'records', entityId: id, changedBy: req.user?.username });
+      logAudit({ action: 'INSERT', entity: 'records', entityId: id, changedBy: req.user?.username, userId });
       res.json({ id });
     } catch (err) {
       next(err);
@@ -30,9 +32,10 @@ export const recordController = {
 
   async update(req, res, next) {
     try {
-      await recordRepository.update(req.params.id, req.body);
+      const userId = req.user.id;
+      await recordRepository.update(userId, req.params.id, req.body);
       payrollController.invalidateCache();
-      logAudit({ action: 'UPDATE', entity: 'records', entityId: req.params.id, changedBy: req.user?.username });
+      logAudit({ action: 'UPDATE', entity: 'records', entityId: req.params.id, changedBy: req.user?.username, userId });
       res.json({ message: 'Record updated' });
     } catch (err) {
       next(err);
@@ -41,9 +44,10 @@ export const recordController = {
 
   async remove(req, res, next) {
     try {
-      await recordRepository.remove(req.params.id);
+      const userId = req.user.id;
+      await recordRepository.remove(userId, req.params.id);
       payrollController.invalidateCache();
-      logAudit({ action: 'DELETE', entity: 'records', entityId: req.params.id, changedBy: req.user?.username });
+      logAudit({ action: 'DELETE', entity: 'records', entityId: req.params.id, changedBy: req.user?.username, userId });
       res.json({ message: 'Record deleted' });
     } catch (err) {
       next(err);

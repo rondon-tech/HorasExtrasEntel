@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Download, Share2 } from 'lucide-react';
+import { Download, Share2, Pencil, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { generateRecordsPDF } from '../utils/pdfGenerator';
 import { formatCLP } from '../utils/format';
@@ -204,48 +204,47 @@ const RecordsList: React.FC = () => {
             const isRecord = item.type === 'record';
             
             return (
-              <div key={item.id} className="glass-card mb-2" style={{ padding: '1rem' }}>
-                <div className="flex-between mb-2">
+              <div key={item.id} className="glass-card mb-2" style={{ padding: '0.85rem 1rem' }}>
+                <div className="flex-between" style={{ marginBottom: '0.35rem' }}>
                   <span className="text-xs text-secondary font-bold" style={{textTransform:'uppercase'}}>
                     {format(parseISO(item.date), 'dd MMM yyyy', { locale: es })}
                   </span>
-                  <span className={`badge ${isRecord ? 'badge-blue' : 'badge-green'}`}>
-                    {isRecord ? 'Horas Extras' : 'Viático'}
-                  </span>
-                </div>
-                
-                <p className="font-bold mb-1">{isRecord ? item.sitio : item.nemonico}</p>
-                {isRecord && item.numeroTarea && (
-                  <p className="text-sm font-bold text-blue mb-1">N° Tarea: {item.numeroTarea}</p>
-                )}
-                <p className="text-sm text-secondary">{isRecord ? item.tarea : item.description}</p>
-                
-                {isRecord ? (
-                  <div className="mt-2 text-xs text-orange">
-                    {item.startTime} - {item.endTime} ({item.extraHours.toFixed(2)} hrs)
-                  </div>
-                ) : (
-                  <div className="mt-2 text-xs text-green">
-                    Valor: {formatCLP(params.viaticoRate)}
-                  </div>
-                )}
-
-                <div className="flex-between mt-3 pt-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
-                  <button 
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span className={`badge ${isRecord ? 'badge-blue' : 'badge-green'}`}>
+                      {isRecord ? 'Horas Extras' : 'Viático'}
+                    </span>
+                    <button
                       onClick={() => isRecord ? navigate(`/record/${item.id}`) : navigate(`/expenses/${item.id}`)}
-                    className="btn-icon text-sm text-blue bg-transparent border-none"
-                    style={{ cursor: 'pointer' }}
-                  >
-                    Editar
-                  </button>
-                  <button 
-                    onClick={() => setConfirmDelete({ id: item.id, isRecord })}
-                    className="btn-icon text-sm text-danger bg-transparent border-none"
-                    style={{ cursor: 'pointer' }}
-                  >
-                    Eliminar
-                  </button>
+                      style={{ background: 'transparent', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', padding: '0.2rem', display: 'flex' }}
+                      title="Editar"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete({ id: item.id, isRecord })}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', padding: '0.2rem', display: 'flex' }}
+                      title="Eliminar"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
+                
+                <p className="font-bold mb-1 text-sm">{isRecord ? item.sitio : item.nemonico}</p>
+                {isRecord && item.numeroTarea && (
+                  <p className="text-xs font-bold text-blue mb-1">N° Tarea: {item.numeroTarea}</p>
+                )}
+                <div className="flex-between">
+                  <p className="text-xs text-secondary" style={{ maxWidth: isRecord ? '70%' : '100%' }}>{isRecord ? item.tarea : item.description}</p>
+                  {isRecord && (
+                    <span className="text-xs text-orange font-bold" style={{ whiteSpace: 'nowrap' }}>
+                      {item.startTime}-{item.endTime} ({item.extraHours.toFixed(1)}h)
+                    </span>
+                  )}
+                </div>
+                {!isRecord && (
+                  <span className="text-xs text-green">Valor: {formatCLP(params.viaticoRate)}</span>
+                )}
               </div>
             );
           })

@@ -15,6 +15,7 @@ const Expenses: React.FC = () => {
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [nemonico, setNemonico] = useState('SA575');
   const [description, setDescription] = useState<string>(TAREA_PLACEHOLDER);
+  const [saving, setSaving] = useState(false);
 
   const nemónicos = NEMONICOS.map(n => n); // keep local array ref for select
 
@@ -36,6 +37,8 @@ const Expenses: React.FC = () => {
       return;
     }
     
+    setSaving(true);
+
     const expenseData = {
       date,
       nemonico,
@@ -45,11 +48,13 @@ const Expenses: React.FC = () => {
     if (editingId) {
       editExpense(editingId, expenseData);
       toast.success('Viático actualizado');
+      setSaving(false);
       navigate('/records');
     } else {
       addExpense(expenseData);
       toast.success('Viático guardado');
       setDescription(TAREA_PLACEHOLDER);
+      setSaving(false);
     }
   };
 
@@ -101,8 +106,9 @@ const Expenses: React.FC = () => {
           </div>
         </div>
 
-        <button type="submit" className="btn btn-primary btn-block">
-          {editingId ? 'Guardar Cambios' : 'Guardar Viático'}
+        <button type="submit" className="btn btn-primary btn-block" disabled={saving} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+          {saving && <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />}
+          {editingId ? (saving ? 'Guardando...' : 'Guardar Cambios') : (saving ? 'Guardando...' : 'Guardar Viático')}
         </button>
       </form>
     </div>

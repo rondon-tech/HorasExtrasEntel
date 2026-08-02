@@ -404,3 +404,10 @@ select.form-control {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+.form-control:focus,
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.25);
+}

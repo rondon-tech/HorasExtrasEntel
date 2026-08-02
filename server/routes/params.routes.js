@@ -10,6 +10,6 @@ const router = Router();
 router.use(requireAuth);
 
 router.get('/', paramsController.get);
-router.put('/', requireRole('admin'), validate(paramsSchema), paramsController.update);
+router.put('/', requireRole('global_admin', 'user'), validate(paramsSchema), paramsController.update);
 
 export { router as paramsRouter };

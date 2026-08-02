@@ -23,6 +23,8 @@ const DailyRecord: React.FC = () => {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [computedHours, setComputedHours] = useState(0);
+  const [timeError, setTimeError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (editingId) {
@@ -50,6 +52,9 @@ const DailyRecord: React.FC = () => {
       
       if (end < start) {
         end = new Date(`1970-01-02T${endTime}:00`);
+        setTimeError('La hora final es anterior a la inicial. Si es turno nocturno, las horas se calculan correctamente.');
+      } else {
+        setTimeError(null);
       }
       
       const diffMs = end.getTime() - start.getTime();
@@ -57,6 +62,7 @@ const DailyRecord: React.FC = () => {
       setComputedHours(Math.max(0, diffHrs));
     } else {
       setComputedHours(0);
+      setTimeError(null);
     }
   }, [startTime, endTime]);
   
@@ -74,6 +80,8 @@ const DailyRecord: React.FC = () => {
       }
     }
 
+    setSaving(true);
+
     const recordData = {
       date,
       dayType,
@@ -90,6 +98,7 @@ const DailyRecord: React.FC = () => {
     if (editingId) {
       editRecord(editingId, recordData);
       toast.success('Registro actualizado');
+      setSaving(false);
       navigate('/records');
     } else {
       addRecord(recordData);
@@ -103,6 +112,7 @@ const DailyRecord: React.FC = () => {
       setDayType('Normal');
       setIsFeriado(false);
       setIsContingencia(false);
+      setSaving(false);
     }
   };
 
@@ -188,6 +198,7 @@ const DailyRecord: React.FC = () => {
                 className="form-control" 
                 value={startTime} 
                 onChange={e => setStartTime(e.target.value)}
+                style={timeError ? { borderColor: 'var(--accent-red)' } : undefined}
               />
             </div>
             <div>
@@ -197,9 +208,13 @@ const DailyRecord: React.FC = () => {
                 className="form-control" 
                 value={endTime} 
                 onChange={e => setEndTime(e.target.value)}
+                style={timeError ? { borderColor: 'var(--accent-red)' } : undefined}
               />
             </div>
           </div>
+          {timeError && (
+            <p style={{ color: 'var(--accent-red)', fontSize: '0.75rem', marginTop: '0.35rem' }}>{timeError}</p>
+          )}
           
           <div className="mt-4 flex-between border-t pt-3" style={{ borderColor: 'var(--border-color)' }}>
             <span className="text-sm text-secondary">Total Horas Extras Calculadas:</span>
@@ -207,8 +222,9 @@ const DailyRecord: React.FC = () => {
           </div>
         </div>
 
-        <button type="submit" className="btn btn-primary btn-block mt-6">
-          {editingId ? 'Guardar Cambios' : 'Guardar Tarea del Día'}
+        <button type="submit" className="btn btn-primary btn-block mt-6" disabled={saving} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+          {saving && <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />}
+          {editingId ? (saving ? 'Guardando...' : 'Guardar Cambios') : (saving ? 'Guardando...' : 'Guardar Tarea del Día')}
         </button>
       </form>
     </div>
