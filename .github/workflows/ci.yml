@@ -42,7 +42,7 @@ jobs:
   agent-evals:
     runs-on: ubuntu-latest
     continue-on-error: true
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v4
@@ -54,7 +54,7 @@ jobs:
 
       - run: npm ci
 
-      - name: Boot server (Neon + agents)
+      - name: Boot server + single login for evals
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
@@ -66,6 +66,14 @@ jobs:
           npm run migrate
           nohup npm run server > server.log 2>&1 &
           npx wait-on http://localhost:3001/api/health --timeout 60000
+          sleep 5
+          TOKEN=$(curl -s -X POST http://localhost:3001/api/login \
+            -H 'Content-Type: application/json' \
+            -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\"}" | jq -r .token)
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "LOGIN FAILED"; cat server.log; exit 1
+          fi
+          echo "AGENT_TEST_TOKEN=$TOKEN" >> $GITHUB_ENV
 
       - name: Run promptfoo suite (A2 grounding / anti-hallucination / anti-injection)
         env:

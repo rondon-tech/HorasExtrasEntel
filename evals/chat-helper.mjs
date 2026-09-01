@@ -19,6 +19,7 @@ const TOKEN_CACHE = path.join(os.tmpdir(), 'hhee-eval-token.json');
 const TOKEN_TTL_MS = 60 * 60 * 1000;
 
 async function getToken() {
+  if (process.env.AGENT_TEST_TOKEN) return process.env.AGENT_TEST_TOKEN;
   try {
     const cached = JSON.parse(fs.readFileSync(TOKEN_CACHE, 'utf8'));
     if (cached.token && Date.now() - cached.at < TOKEN_TTL_MS) return cached.token;
