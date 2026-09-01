@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import toast from 'react-hot-toast';
-import { Shield, RotateCcw, Trash2, UserPlus, Pencil, X, Users } from 'lucide-react';
+import { Shield, RotateCcw, Trash2, UserPlus, Pencil, X, Users, Bot, FileText, Activity, AlertTriangle, Check, XCircle } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Spinner } from '../components/Spinner';
@@ -35,6 +35,211 @@ function avatarBg(id: string) {
   return avatarColor(id) + '20';
 }
 
+
+interface AnomalyRow {
+  id: string;
+  record_id: string;
+  user_id: string;
+  username: string;
+  type: string;
+  score: string | number;
+  reasons: unknown;
+  status: 'open' | 'reviewed' | 'dismissed';
+  record_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  extra_hours: string | number | null;
+  sitio: string | null;
+  tarea: string | null;
+  created_at: string;
+}
+
+const ANOMALY_LABELS: Record<string, string> = {
+  daily_cap_exceeded: 'Tope diario excedido',
+  extra_hours_exceed_shift: 'Extras > duracion del turno',
+  inconsistent_time_window: 'Ventana horaria inconsistente',
+  monthly_cap_exceeded: 'Tope mensual excedido',
+};
+
+const AnomalySection: React.FC = () => {
+  const [rows, setRows] = useState<AnomalyRow[] | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'open' | 'reviewed' | 'dismissed' | ''>('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [acting, setActing] = useState<string | null>(null);
+
+  const fetchAnomalies = useCallback(async (status: string) => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await apiClient.get('/agent/anomalies/all', { params: status ? { status } : {} });
+      setRows(res.data.data);
+    } catch {
+      setError('No se pudo cargar las anomalias.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAnomalies(statusFilter); }, [statusFilter, fetchAnomalies]);
+
+  const updateStatus = async (id: string, status: 'reviewed' | 'dismissed') => {
+    setActing(id);
+    try {
+      await apiClient.patch('/agent/anomalies/' + id, { status });
+      setRows((prev) => prev ? prev.filter((r) => r.id !== id) : prev);
+    } catch {
+      setError('No se pudo actualizar la anomalia.');
+    } finally {
+      setActing(null);
+    }
+  };
+
+  const parseReasons = (reasons: unknown): string[] => {
+    if (Array.isArray(reasons)) return reasons.map(String);
+    try { const p = JSON.parse(String(reasons)); return Array.isArray(p) ? p.map(String) : []; } catch { return []; }
+  };
+
+  const openCount = rows?.filter((r) => r.status === 'open').length ?? 0;
+
+  return (
+    <div className="card" style={{ marginTop: '1.5rem' }}>
+      <div className="flex-between" style={{ marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <AlertTriangle size={18} style={{ color: openCount > 0 ? '#f59e0b' : 'var(--accent-green)' }} />
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>
+            Anomalias detectadas (A1) {openCount > 0 && <span style={{ color: '#f59e0b' }}>({openCount} abiertas)</span>}
+          </h3>
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '0.4rem', padding: '0.3rem 0.5rem', fontSize: '0.78rem' }}
+          aria-label="Filtrar por estado"
+        >
+          <option value="">Todas</option>
+          <option value="open">Abiertas</option>
+          <option value="reviewed">Revisadas</option>
+          <option value="dismissed">Descartadas</option>
+        </select>
+      </div>
+      {loading && <Spinner />}
+      {error && <p role="alert" style={{ color: '#ef4444', fontSize: '0.8rem' }}>{error}</p>}
+      {rows && rows.length === 0 && !loading && (
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>Sin anomalias para este filtro.</p>
+      )}
+      {rows && rows.map((r) => (
+        <div key={r.id} style={{ border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.65rem 0.75rem', marginBottom: '0.5rem', background: 'var(--bg-secondary)' }}>
+          <div className="flex-between" style={{ flexWrap: 'wrap', gap: '0.4rem' }}>
+            <div style={{ fontSize: '0.82rem' }}>
+              <strong>{r.username}</strong> · {ANOMALY_LABELS[r.type] || r.type}
+              <span style={{ marginLeft: '0.5rem', color: Number(r.score) >= 80 ? '#ef4444' : '#f59e0b', fontWeight: 700 }}>score {Number(r.score)}</span>
+            </div>
+            <div style={{ display: 'flex', gap: '0.4rem' }}>
+              {r.status === 'open' && (
+                <>
+                  <button onClick={() => updateStatus(r.id, 'reviewed')} disabled={acting === r.id} title="Marcar como revisada"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.55rem', fontSize: '0.72rem', borderRadius: '0.4rem', border: '1px solid var(--accent-green)', background: 'transparent', color: 'var(--accent-green)', cursor: 'pointer' }}>
+                    <Check size={12} aria-hidden="true" /> Revisada
+                  </button>
+                  <button onClick={() => updateStatus(r.id, 'dismissed')} disabled={acting === r.id} title="Descartar (falso positivo)"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.55rem', fontSize: '0.72rem', borderRadius: '0.4rem', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    <XCircle size={12} aria-hidden="true" /> Descartar
+                  </button>
+                </>
+              )}
+              {r.status !== 'open' && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{r.status === 'reviewed' ? '✓ Revisada' : 'Descartada'}</span>}
+            </div>
+          </div>
+          <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            {r.record_date} · turno {r.start_time?.slice(0, 5)}-{r.end_time?.slice(0, 5)} · {r.extra_hours}h extras · {r.sitio} · {r.tarea}
+          </p>
+          {parseReasons(r.reasons).map((reason, i) => (
+            <p key={i} style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>• {reason}</p>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ── Agent usage (IA) ──
+interface UsageRow {
+  gateway: string;
+  model: string;
+  ok_count: string;
+  fail_count: string;
+  avg_latency_ms: number | null;
+  tokens_in: number;
+  tokens_out: number;
+}
+
+const AgentUsageSection: React.FC = () => {
+  const [rows, setRows] = useState<UsageRow[] | null>(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  const fetchUsage = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await apiClient.get('/agent/usage', { params: { days: 7 } });
+      setRows(res.data.data);
+    } catch (err) {
+      setError('No se pudo cargar el uso de IA.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchUsage(); }, [fetchUsage]);
+
+  return (
+    <div className="card" style={{ marginTop: '1.5rem' }}>
+      <div className="flex-between" style={{ marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Bot size={18} style={{ color: 'var(--accent-green)' }} />
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Uso de agentes IA (7 días)</h3>
+        </div>
+        <button onClick={fetchUsage} className="btn btn-secondary btn-sm" style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}>
+          Actualizar
+        </button>
+      </div>
+      {loading && <Spinner />}
+      {error && <p role="alert" style={{ color: 'var(--accent-red, #ef4444)', fontSize: '0.8rem' }}>{error}</p>}
+      {rows && (
+        rows.length === 0
+          ? <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Sin invocaciones registradas todavía.</p>
+          : <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', fontSize: '0.78rem', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
+                    <th style={{ padding: '0.4rem 0.5rem' }}>Gateway</th>
+                    <th style={{ padding: '0.4rem 0.5rem' }}>Modelo</th>
+                    <th style={{ padding: '0.4rem 0.5rem' }}>OK</th>
+                    <th style={{ padding: '0.4rem 0.5rem' }}>Fallos</th>
+                    <th style={{ padding: '0.4rem 0.5rem' }}>Latencia</th>
+                    <th style={{ padding: '0.4rem 0.5rem' }}>Tokens (in/out)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={`${r.gateway}:${r.model}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '0.4rem 0.5rem' }}>{r.gateway}</td>
+                      <td style={{ padding: '0.4rem 0.5rem' }}>{r.model}</td>
+                      <td style={{ padding: '0.4rem 0.5rem', color: 'var(--accent-green)' }}>{r.ok_count}</td>
+                      <td style={{ padding: '0.4rem 0.5rem', color: Number(r.fail_count) > 0 ? '#f59e0b' : 'inherit' }}>{r.fail_count}</td>
+                      <td style={{ padding: '0.4rem 0.5rem' }}>{r.avg_latency_ms !== null ? `${(r.avg_latency_ms / 1000).toFixed(1)}s` : '—'}</td>
+                      <td style={{ padding: '0.4rem 0.5rem', color: 'var(--text-muted)' }}>{r.tokens_in}/{r.tokens_out}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+      )}
+    </div>
+  );
+};
 // ── Edit Modal ──
 interface EditUserFields {
   firstName: string;
@@ -141,6 +346,46 @@ const EditUserModal: React.FC<{
 const AdminPanel: React.FC = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
+
+  const [report, setReport] = useState<string | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+
+  const [diagnosis, setDiagnosis] = useState<string | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagError, setDiagError] = useState('');
+
+  const runDiagnosis = useCallback(async () => {
+    setDiagLoading(true);
+    setDiagError('');
+    try {
+      const res = await apiClient.post('/agent/ops/diagnosis', {});
+      setDiagnosis(res.data.data.diagnosis);
+    } catch (err) {
+      setDiagError(err instanceof Error ? err.message : 'No se pudo ejecutar el diagnostico.');
+    } finally {
+      setDiagLoading(false);
+    }
+  }, []);
+
+  const [reportError, setReportError] = useState('');
+
+  const generateReport = useCallback(async () => {
+    setReportLoading(true);
+    setReportError('');
+    try {
+      const now = new Date();
+      const res = await apiClient.post('/agent/reports/monthly', {
+        year: now.getFullYear(),
+        month: now.getMonth() + 1,
+      });
+      setReport(res.data.data.report);
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : 'No se pudo generar el reporte.');
+    } finally {
+      setReportLoading(false);
+    }
+  }, []);
+
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -304,6 +549,60 @@ const AdminPanel: React.FC = () => {
           )}
         </>
       )}
+
+      <AgentUsageSection />
+
+      <AnomalySection />
+
+      <div className="card" style={{ marginTop: '1.5rem' }}>
+        <div className="flex-between" style={{ marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Activity size={18} style={{ color: 'var(--accent-green)' }} />
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Diagnostico del sistema (A5)</h3>
+          </div>
+          <button onClick={runDiagnosis} className="btn btn-secondary" style={{ padding: '0.45rem 0.85rem', fontSize: '0.78rem' }} disabled={diagLoading}>
+            {diagLoading ? 'Diagnosticando...' : 'Ejecutar diagnostico'}
+          </button>
+        </div>
+        {diagLoading && <Spinner />}
+        {diagError && <p role="alert" style={{ color: '#ef4444', fontSize: '0.8rem' }}>{diagError}</p>}
+        {diagnosis && (
+          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '0.82rem', lineHeight: 1.55, background: 'var(--bg-secondary)', padding: '0.85rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', margin: 0 }}>
+            {diagnosis}
+          </pre>
+        )}
+        {!diagnosis && !diagLoading && !diagError && (
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+            Revisa salud de BD, failover, gateways activos y errores de IA de las ultimas 24 horas.
+          </p>
+        )}
+      </div>
+
+
+      <div className="card" style={{ marginTop: '1.5rem' }}>
+        <div className="flex-between" style={{ marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FileText size={18} style={{ color: 'var(--accent-green)' }} />
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Reporte mensual de liquidaciones (IA)</h3>
+          </div>
+          <button onClick={generateReport} className="btn btn-primary" style={{ padding: '0.45rem 0.85rem', fontSize: '0.78rem' }} disabled={reportLoading}>
+            {reportLoading ? 'Generando...' : 'Generar reporte'}
+          </button>
+        </div>
+        {reportLoading && <Spinner />}
+        {reportError && <p role="alert" style={{ color: '#ef4444', fontSize: '0.8rem' }}>{reportError}</p>}
+        {report && (
+          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '0.82rem', lineHeight: 1.55, background: 'var(--bg-secondary)', padding: '0.85rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', margin: 0 }}>
+            {report}
+          </pre>
+        )}
+        {!report && !reportLoading && !reportError && (
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+            Genera un informe ejecutivo con resumen por técnico, anomalias abiertas y observaciones para el cierre del mes.
+          </p>
+        )}
+      </div>
+
 
       <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} onSave={handleEditSave} />
 

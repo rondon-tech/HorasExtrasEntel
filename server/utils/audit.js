@@ -1,4 +1,5 @@
 import { pool } from '../config/db.js';
+import { logger } from './logger.js';
 
 /**
  * Lightweight audit logger.
@@ -11,7 +12,12 @@ export async function logAudit({ action, entity, entityId, changedBy, userId, de
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [action, entity, entityId, changedBy, userId, details ? JSON.stringify(details) : null]
     );
-  } catch {
-    // Audit failure should NEVER break the main flow.
+  } catch (err) {
+    logger.error('Audit log insert failed (non-blocking):', {
+      action,
+      entity,
+      message: err.message,
+      code: err.code,
+    });
   }
 }

@@ -2,6 +2,7 @@ import { paramsRepository } from '../repositories/params.repository.js';
 import { paramsUpdateToDb } from '../mappers/index.js';
 import { logAudit } from '../utils/audit.js';
 import { payrollController } from './payroll.controller.js';
+import { clearSnapshotCache } from '../agents/context.js';
 
 export const paramsController = {
   async get(req, res, next) {
@@ -29,6 +30,7 @@ export const paramsController = {
       }
       await paramsRepository.update(userId, values);
       payrollController.invalidateCache();
+      clearSnapshotCache();
       logAudit({ action: 'UPDATE', entity: 'params', entityId: userId, changedBy: req.user?.username, userId });
       res.json({ message: 'Params updated' });
     } catch (err) {

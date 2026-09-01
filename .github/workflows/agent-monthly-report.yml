@@ -1,0 +1,54 @@
+name: A4 monthly report
+
+on:
+  schedule:
+    - cron: '0 12 1 * *'
+  workflow_dispatch:
+    inputs:
+      year:
+        description: 'Year (defaults to previous month year)'
+        required: false
+      month:
+        description: 'Month 1-12 (defaults to previous month)'
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Generate monthly liquidation report (A4)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          ADMIN_USER: ${{ secrets.ADMIN_USER }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_OLLAMA_BASE_URL: ${{ secrets.LLM_OLLAMA_BASE_URL }}
+          LLM_OLLAMA_API_KEY: ${{ secrets.LLM_OLLAMA_API_KEY }}
+          LLM_MODEL: qwen/qwen3.8-27b
+          LLM_JSON_MODEL: qwen/qwen3.8-27b
+          LLM_REPORT_MODEL: ollama:gpt-oss:120b
+        run: |
+          PREV_MONTH=$(date -d "last month" +"%m")
+          PREV_YEAR=$(date -d "last month" +"%Y")
+          YEAR_INPUT="${{ inputs.year }}"
+          MONTH_INPUT="${{ inputs.month }}"
+          npm run migrate
+          npx tsx scripts/monthly-report.mjs "${YEAR_INPUT:-$PREV_YEAR}" "${MONTH_INPUT:-$PREV_MONTH}"
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: monthly-report
+          path: report-*.md
+          retention-days: 90

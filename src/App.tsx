@@ -17,6 +17,7 @@ const AdminPanel = lazy(() => import('./screens/AdminPanel'));
 const Register = lazy(() => import('./screens/Register'));
 const ChangePassword = lazy(() => import('./screens/ChangePassword'));
 const Profile = lazy(() => import('./screens/Profile'));
+const AssistantPanel = lazy(() => import('./components/AssistantPanel'));
 
 // Map URL paths to tab keys (used for bottom-nav active state)
 const pathToTab: Record<string, string> = {
@@ -137,6 +138,10 @@ function Layout() {
           </button>
         ))}
       </nav>
+
+      <Suspense fallback={null}>
+        <AssistantPanel />
+      </Suspense>
     </div>
   );
 }

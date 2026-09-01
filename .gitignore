@@ -36,3 +36,6 @@ logs/
  
 .vercel
 .env*
+
+# Deployment secrets doc - never commit
+SECRETS_DEPLOY.md

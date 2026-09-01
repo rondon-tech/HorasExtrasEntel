@@ -16,6 +16,19 @@ try {
   configError = err;
 }
 
+if (env?.SENTRY_DSN) {
+  try {
+    const Sentry = await import('@sentry/node');
+    Sentry.init({
+      dsn: env.SENTRY_DSN,
+      environment: env.NODE_ENV,
+      tracesSampleRate: 0.1,
+    });
+  } catch (sentryErr) {
+    logger.error('Sentry failed to initialize:', { message: sentryErr.message });
+  }
+}
+
 const app = express();
 app.set('trust proxy', 1);
 app.use(helmet({
@@ -37,7 +50,7 @@ app.use(express.json({ limit: '1mb' }));
 // returns a descriptive JSON error for every route.
 if (configError) {
   app.use(cors());
-  app.all('*', (_req, res) => {
+  app.use((_req, res) => {
     res.status(500).json({
       error: 'Server configuration error',
       message: configError.message,
@@ -53,6 +66,7 @@ if (configError) {
   const { recordRouter } = await import('../server/routes/record.routes.js');
   const { paramsRouter } = await import('../server/routes/params.routes.js');
   const { adminRouter } = await import('../server/routes/admin.routes.js');
+  const { agentRouter } = await import('../server/routes/agent.routes.js');
   const { payrollController } = await import('../server/controllers/payroll.controller.js');
   const { requireAuth } = await import('../server/middlewares/auth.js');
   const { requirePasswordChanged } = await import('../server/middlewares/password-change.js');
@@ -93,53 +107,57 @@ if (configError) {
   app.use('/api/records', recordRouter);
   app.use('/api/expenses', expenseRouter);
   app.use('/api/admin', adminRouter);
+  app.use('/api/agent', agentRouter);
 
   app.get('/api/health', async (_req, res) => {
     try {
       await pool.query('SELECT 1');
       res.json({ status: 'healthy', timestamp: new Date().toISOString() });
     } catch (err) {
-      res.status(503).json({ status: 'unhealthy', error: err.message });
+      logger.error('Health check failed:', { message: err.message });
+      res.status(503).json({ status: 'unhealthy' });
     }
   });
 
-  app.get('/api/debug/db-check', requireAuth, async (req, res) => {
-    try {
-      const userId = req.user.id;
-      
-      const tableCheck = await pool.query(`
-        SELECT column_name, data_type, is_nullable 
-        FROM information_schema.columns 
-        WHERE table_name = 'records' 
-        ORDER BY ordinal_position
-      `);
-      
-      const userCheck = await pool.query(
-        'SELECT id, username, role FROM users WHERE id = $1',
-        [userId]
-      );
-      
-      const recordCount = await pool.query(
-        'SELECT COUNT(*)::int as count FROM records WHERE user_id = $1',
-        [userId]
-      );
-      
-      res.json({
-        userId,
-        user: userCheck.rows[0] || null,
-        recordsTable: tableCheck.rows,
-        userRecordCount: recordCount.rows[0]?.count || 0,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (err) {
-      res.status(500).json({ 
-        error: err.message, 
-        code: err.code,
-        detail: err.detail,
-        stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined 
-      });
-    }
-  });
+  if (!env.isProduction) {
+    app.get('/api/debug/db-check', requireAuth, async (req, res) => {
+      try {
+        const userId = req.user.id;
+
+        const tableCheck = await pool.query(`
+          SELECT column_name, data_type, is_nullable
+          FROM information_schema.columns
+          WHERE table_name = 'records'
+          ORDER BY ordinal_position
+        `);
+
+        const userCheck = await pool.query(
+          'SELECT id, username, role FROM users WHERE id = $1',
+          [userId]
+        );
+
+        const recordCount = await pool.query(
+          'SELECT COUNT(*)::int as count FROM records WHERE user_id = $1',
+          [userId]
+        );
+
+        res.json({
+          userId,
+          user: userCheck.rows[0] || null,
+          recordsTable: tableCheck.rows,
+          userRecordCount: recordCount.rows[0]?.count || 0,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (err) {
+        res.status(500).json({
+          error: err.message,
+          code: err.code,
+          detail: err.detail,
+          stack: err.stack,
+        });
+      }
+    });
+  }
 }
 
 app.use(errorHandler);

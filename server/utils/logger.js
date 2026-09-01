@@ -1,37 +1,40 @@
 import winston from 'winston';
 
-const { combine, timestamp, printf, colorize, errors } = winston.format;
-
-const logFormat = printf(({ level, message, timestamp, stack }) => {
-  return `${timestamp} ${level}: ${stack || message}`;
-});
-
 const transports = [];
 
-// In serverless environments (like Vercel), the filesystem is read-only except for /tmp.
-// So we only use File transports if we are NOT on Vercel.
 if (!process.env.VERCEL) {
   transports.push(new winston.transports.File({ filename: 'logs/error.log', level: 'error' }));
   transports.push(new winston.transports.File({ filename: 'logs/combined.log' }));
 }
 
-export const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: combine(
-    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    errors({ stack: true }), // Allow logging Error objects with stack traces
-    logFormat
-  ),
-  transports
+const withMeta = winston.format.printf((info) => {
+  const { level, message, timestamp, stack, ...meta } = info;
+  const metaStr = Object.keys(meta).length ? ' ' + JSON.stringify(meta) : '';
+  return timestamp + ' ' + level + ': ' + (stack || message) + metaStr;
 });
 
-// Always add Console transport in dev, OR if we are on Vercel (since it's the only way to log)
+export const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: process.env.VERCEL
+    ? winston.format.combine(
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        winston.format.errors({ stack: true }),
+        winston.format.json()
+      )
+    : winston.format.combine(
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        winston.format.errors({ stack: true }),
+        withMeta
+      ),
+  transports,
+});
+
 if (process.env.NODE_ENV !== 'production' || process.env.VERCEL) {
   logger.add(new winston.transports.Console({
-    format: combine(
-      colorize(),
-      timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-      logFormat
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+      withMeta
     )
   }));
 }
