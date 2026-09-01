@@ -6,11 +6,14 @@ import { fileURLToPath } from 'url';
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const BASE = process.env.EVAL_BASE_URL || 'http://localhost:3001';
 
-const envVars = {};
-for (const line of fs.readFileSync(ROOT + '.env', 'utf8').split(/\r?\n/)) {
-  const m = /^([A-Z_]+)="?([^"#]*)"?\s*$/.exec(line);
-  if (m) envVars[m[1]] = m[2];
-}
+const envVars = { ...process.env };
+try {
+  const localEnv = fs.readFileSync(ROOT + '.env', 'utf8');
+  for (const line of localEnv.split(/\r?\n/)) {
+    const m = /^([A-Z_]+)="?([^"#]*)"?\s*$/.exec(line);
+    if (m && !process.env[m[1]]) envVars[m[1]] = m[2];
+  }
+} catch {}
 
 const TOKEN_CACHE = path.join(os.tmpdir(), 'hhee-eval-token.json');
 const TOKEN_TTL_MS = 60 * 60 * 1000;
