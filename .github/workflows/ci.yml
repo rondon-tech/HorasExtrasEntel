@@ -36,7 +36,7 @@ jobs:
 
       - name: Verify migration scripts exist
         run: |
-          test -f api/migrations/001_initial-schema.js
+          test -f server/migrations/001_initial-schema.js
           test -f migrate.mjs
 
   agent-evals:
