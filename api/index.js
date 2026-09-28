@@ -70,12 +70,17 @@ if (configError) {
 
   const { authRouter } = authRouterModule;
 
-  // Strict CORS: allow localhost for dev and FRONTEND_URL for prod.
+  // Strict CORS: explicit allowlist only (no wildcards).
+  // The production frontend is always allowed so a missing/mismatched
+  // FRONTEND_URL can never lock the app out of its own API.
   const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3001',
+    'https://horas-extras-entel-eight.vercel.app',
   ];
-  if (env.FRONTEND_URL) allowedOrigins.push(env.FRONTEND_URL);
+  if (env.FRONTEND_URL && !allowedOrigins.includes(env.FRONTEND_URL)) {
+    allowedOrigins.push(env.FRONTEND_URL);
+  }
 
   app.use(cors({
     origin: function(origin, callback) {
