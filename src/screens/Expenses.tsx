@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAppContext } from '../context/AppContext';
 import { format } from 'date-fns';
-import { TAREAS_OPTIONS, TAREA_PLACEHOLDER, NEMONICOS } from '../constants/tasks';
+import { TAREAS_OPTIONS, TAREA_PLACEHOLDER, SITIOS_SUGERIDOS, NEMONICO_MAX_LENGTH } from '../constants/tasks';
 import { formatCLP } from '../utils/format';
 import { Spinner } from '../components/Spinner';
 import { Camera } from 'lucide-react';
@@ -14,13 +14,11 @@ const Expenses: React.FC = () => {
   const { expenses, params, addExpense, editExpense, isLoading } = useAppContext();
   
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [nemonico, setNemonico] = useState('SA575');
+  const [nemonico, setNemonico] = useState('');
   const [description, setDescription] = useState<string>(TAREA_PLACEHOLDER);
   const [saving, setSaving] = useState(false);
   const [ocrState, setOcrState] = useState<'idle' | 'processing' | 'review'>('idle');
   const fileRef = React.useRef<HTMLInputElement>(null);
-
-  const nemónicos = NEMONICOS.map(n => n);
 
   const compressImage = (file: File): Promise<string> => new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -78,16 +76,21 @@ const Expenses: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanNemonico = nemonico.trim().toUpperCase().slice(0, NEMONICO_MAX_LENGTH);
+    if (!cleanNemonico) {
+      toast.error('Por favor, escriba el nemónico del sitio visitado.');
+      return;
+    }
     if (description === TAREA_PLACEHOLDER) {
       toast.error('Por favor, seleccione una descripción de tarea válida.');
       return;
     }
-    
+
     setSaving(true);
 
     const expenseData = {
       date,
-      nemonico,
+      nemonico: cleanNemonico,
       description
     };
 
@@ -145,32 +148,46 @@ const Expenses: React.FC = () => {
       <form onSubmit={handleSubmit} className="glass-card mb-6">
         <div className="grid-2 mb-4">
           <div className="form-group mb-0">
-            <label className="form-label">Fecha</label>
-            <input 
-              type="date" 
-              className="form-control" 
-              value={date} 
+            <label className="form-label" htmlFor="expense-date">Fecha</label>
+            <input
+              id="expense-date"
+              type="date"
+              className="form-control"
+              value={date}
               onChange={e => setDate(e.target.value)}
               required
             />
           </div>
           <div className="form-group mb-0">
-            <label className="form-label">Nemónico</label>
-            <select 
-              className="form-control" 
-              value={nemonico} 
-              onChange={e => setNemonico(e.target.value)}
-            >
-              {nemónicos.map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
+            <label className="form-label" htmlFor="expense-nemonico">Nemónico</label>
+            <input
+              id="expense-nemonico"
+              type="text"
+              className="form-control"
+              value={nemonico}
+              onChange={e => setNemonico(e.target.value.toUpperCase())}
+              list="nemonico-sugerencias"
+              placeholder="Ej: SA575"
+              autoComplete="off"
+              autoCapitalize="characters"
+              maxLength={NEMONICO_MAX_LENGTH}
+              required
+            />
+            <datalist id="nemonico-sugerencias">
+              {SITIOS_SUGERIDOS.map(n => <option key={n} value={n} />)}
+            </datalist>
+            <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Escriba el nemónico del sitio o elija uno sugerido.
+            </p>
           </div>
         </div>
 
         <div className="form-group">
-          <label className="form-label">Descripción Tarea</label>
-          <select 
-            className="form-control" 
-            value={description} 
+          <label className="form-label" htmlFor="expense-description">Descripción Tarea</label>
+          <select
+            id="expense-description"
+            className="form-control"
+            value={description}
             onChange={e => setDescription(e.target.value)}
             required
           >

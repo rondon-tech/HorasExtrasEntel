@@ -28,5 +28,8 @@ export type Tarea = typeof TAREAS_OPTIONS[number];
 export const DAY_TYPES = ['Normal', 'TAD', 'TAD Apoyo'] as const;
 export type DayTypeLabel = typeof DAY_TYPES[number];
 
-export const NEMONICOS = ['SA575', 'FN699', 'SA881', 'Otro'] as const;
-export type Nemonico = typeof NEMONICOS[number];
+/** Sitios frecuentes: solo sugerencias, el usuario puede escribir cualquier nemónico. */
+export const SITIOS_SUGERIDOS = ['SA575', 'FN699', 'SA881'] as const;
+
+/** Longitud máxima del nemónico (columna expenses.nemonico VARCHAR(50)). */
+export const NEMONICO_MAX_LENGTH = 50;
