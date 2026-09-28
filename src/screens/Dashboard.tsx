@@ -9,12 +9,14 @@ import { usePayrollPDF } from '../hooks/usePayrollPDF';
 import { useProfileQuery } from '../hooks/useApi';
 import BentoCard from '../components/BentoCard';
 import QuickAddModal from '../components/QuickAddModal';
+import ViaticosModal from '../components/ViaticosModal';
 import { Spinner } from '../components/Spinner';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [quickAddType, setQuickAddType] = React.useState<'TAD' | 'Contingencia' | null>(null);
-  
+  const [viaticosOpen, setViaticosOpen] = React.useState(false);
+
   const appContextData = useAppContext();
   const {
     currentMonth,
@@ -26,8 +28,14 @@ const Dashboard: React.FC = () => {
     diasCompensatoriosGanados,
     pureTadDays,
     contingencyDaysThisMonth,
-    apoyoTadDays
+    apoyoTadDays,
+    expenses,
+    params,
   } = appContextData;
+
+  const monthPrefix = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+  const monthExpenses = expenses.filter((e) => e.date.startsWith(monthPrefix));
+  const viaticosTotal = monthExpenses.length * (params.viaticoRate || 0);
   const { download: downloadPDF, share: sharePDF } = usePayrollPDF(appContextData, currentMonth);
   const { data: profile } = useProfileQuery();
 
@@ -120,6 +128,13 @@ const Dashboard: React.FC = () => {
           <p className="text-xs text-muted mt-1">Total del mes</p>
         </BentoCard>
 
+        <BentoCard title="Viáticos del Mes" className="bento-col-2 bento-row-1 bento-card-clickable" onClick={() => setViaticosOpen(true)} ariaLabel="Ver detalle de viáticos del mes">
+          <p className="stat-value text-green">{formatCLP(viaticosTotal)}</p>
+          <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>
+            {monthExpenses.length} viático{monthExpenses.length === 1 ? '' : 's'} &rarr;
+          </p>
+        </BentoCard>
+
         <BentoCard title="Acciones Rápidas" className="bento-col-4 bento-row-1">
           <div className="grid-2">
             <button className="btn btn-primary" onClick={() => navigate('/record')}>
@@ -135,10 +150,14 @@ const Dashboard: React.FC = () => {
         </BentoCard>
       </div>
 
-      <QuickAddModal 
-        isOpen={quickAddType !== null} 
-        onClose={() => setQuickAddType(null)} 
-        type={quickAddType || 'TAD'} 
+      <QuickAddModal
+        isOpen={quickAddType !== null}
+        onClose={() => setQuickAddType(null)}
+        type={quickAddType || 'TAD'}
+      />
+      <ViaticosModal
+        isOpen={viaticosOpen}
+        onClose={() => setViaticosOpen(false)}
       />
     </div>
   );
