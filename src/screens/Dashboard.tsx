@@ -10,12 +10,18 @@ import { useProfileQuery } from '../hooks/useApi';
 import BentoCard from '../components/BentoCard';
 import QuickAddModal from '../components/QuickAddModal';
 import ViaticosModal from '../components/ViaticosModal';
+import DayListModal, { type DayGroup } from '../components/DayListModal';
+import { monthPrefix } from '../utils/dates';
 import { Spinner } from '../components/Spinner';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [quickAddType, setQuickAddType] = React.useState<'TAD' | 'Contingencia' | null>(null);
   const [viaticosOpen, setViaticosOpen] = React.useState(false);
+  const [tapOpen, setTapOpen] = React.useState(false);
+  const [compOpen, setCompOpen] = React.useState(false);
+  const [apoyoOpen, setApoyoOpen] = React.useState(false);
+  const [contOpen, setContOpen] = React.useState(false);
 
   const appContextData = useAppContext();
   const {
@@ -30,12 +36,52 @@ const Dashboard: React.FC = () => {
     contingencyDaysThisMonth,
     apoyoTadDays,
     expenses,
+    records,
     params,
   } = appContextData;
 
-  const monthPrefix = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
-  const monthExpenses = expenses.filter((e) => e.date.startsWith(monthPrefix));
+  const prefix = monthPrefix(currentMonth);
+  const monthExpenses = expenses.filter((e) => e.date.startsWith(prefix));
   const viaticosTotal = monthExpenses.length * (params.viaticoRate || 0);
+
+  // Agrupa registros del mes por fecha (igual que el servidor: fechas únicas).
+  const groupByDate = (predicate: (r: (typeof records)[number]) => boolean) => {
+    const byDate = new Map<string, typeof records>();
+    records
+      .filter((r) => r.date.startsWith(prefix) && predicate(r))
+      .forEach((r) => {
+        const list = byDate.get(r.date) ?? [];
+        list.push(r);
+        byDate.set(r.date, list);
+      });
+    return [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b));
+  };
+
+  const toDayGroups = (entries: [string, typeof records][], fallback: string): DayGroup[] =>
+    entries.map(([date, dayRecords]) => {
+      const hours = dayRecords.reduce((sum, r) => sum + (r.extraHours || 0), 0);
+      const sitios = [...new Set(dayRecords.map((r) => r.sitio).filter((s) => s && s !== '-'))];
+      return {
+        date,
+        subtitle: sitios.length > 0 ? sitios.join(', ') : fallback,
+        badge: hours > 0 ? `${hours.toFixed(1)} hrs` : fallback,
+      };
+    });
+
+  // Días TAP del mes (day_type === 'TAD').
+  const tapDays = toDayGroups(groupByDate((r) => r.dayType === 'TAD'), 'Guardia');
+  const tapBonusTotal = tapDays.length * (params.tadRate || 0);
+
+  // Días compensatorios ganados (is_feriado).
+  const compDays = toDayGroups(groupByDate((r) => r.isFeriado === true), 'Feriado');
+
+  // Días Apoyo TAP (day_type === 'TAD Apoyo').
+  const apoyoDays = toDayGroups(groupByDate((r) => r.dayType === 'TAD Apoyo'), 'Apoyo');
+  const apoyoBonusTotal = apoyoDays.length * (params.tadRate || 0);
+
+  // Días Contingencia (is_contingencia).
+  const contDays = toDayGroups(groupByDate((r) => r.isContingencia === true), 'Guardia');
+  const contBonusTotal = contDays.length * (params.contingencyRate || 0);
   const { download: downloadPDF, share: sharePDF } = usePayrollPDF(appContextData, currentMonth);
   const { data: profile } = useProfileQuery();
 
@@ -108,24 +154,24 @@ const Dashboard: React.FC = () => {
           <p className="text-xs text-muted mt-1">{formatCLP(totalExtraPayThisMonth)} imponibles</p>
         </BentoCard>
 
-        <BentoCard title="Días Compens. Ganados" className="bento-col-1 bento-row-1">
+        <BentoCard title="Días Compens. Ganados" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setCompOpen(true)} ariaLabel="Ver detalle de días compensatorios del mes">
           <p className="stat-value text-blue">{diasCompensatoriosGanados}</p>
-          <p className="text-xs text-muted mt-1">Por feriados/domingos</p>
+          <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>Toca para ver el detalle &rarr;</p>
         </BentoCard>
 
-        <BentoCard title="Días TAP Trabajados" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setQuickAddType('TAD')}>
+        <BentoCard title="Días TAP Trabajados" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setTapOpen(true)} ariaLabel="Ver detalle de días TAP del mes">
           <p className="stat-value text-green">{pureTadDays}</p>
-          <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>+ Ingresar Disposición</p>
+          <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>Toca para ver el detalle &rarr;</p>
         </BentoCard>
 
-        <BentoCard title="Días Contingencia" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setQuickAddType('Contingencia')}>
+        <BentoCard title="Días Contingencia" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setContOpen(true)} ariaLabel="Ver detalle de días de contingencia del mes">
           <p className="stat-value text-purple">{contingencyDaysThisMonth}</p>
-          <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>+ Ingresar Disposición</p>
+          <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>Toca para ver el detalle &rarr;</p>
         </BentoCard>
 
-        <BentoCard title="Días Apoyo TAP" className="bento-col-1 bento-row-1">
+        <BentoCard title="Días Apoyo TAP" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setApoyoOpen(true)} ariaLabel="Ver detalle de días de apoyo TAP del mes">
           <p className="stat-value text-green">{apoyoTadDays}</p>
-          <p className="text-xs text-muted mt-1">Total del mes</p>
+          <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>Toca para ver el detalle &rarr;</p>
         </BentoCard>
 
         <BentoCard title="Viáticos del Mes" className="bento-col-2 bento-row-1 bento-card-clickable" onClick={() => setViaticosOpen(true)} ariaLabel="Ver detalle de viáticos del mes">
@@ -158,6 +204,74 @@ const Dashboard: React.FC = () => {
       <ViaticosModal
         isOpen={viaticosOpen}
         onClose={() => setViaticosOpen(false)}
+      />
+      <DayListModal
+        isOpen={tapOpen}
+        onClose={() => setTapOpen(false)}
+        title="Días TAP"
+        monthLabel={formattedMonth}
+        days={tapDays}
+        footer={
+          <div className="flex-between">
+            <span className="text-sm text-secondary">
+              {tapDays.length} día{tapDays.length === 1 ? '' : 's'} × {formatCLP(params.tadRate)}
+            </span>
+            <span className="font-bold text-green">{formatCLP(tapBonusTotal)}</span>
+          </div>
+        }
+        emptyMessage="Sin días TAP registrados este mes."
+        addLabel="Ingresar Disposición"
+        onAdd={() => { setTapOpen(false); setQuickAddType('TAD'); }}
+      />
+      <DayListModal
+        isOpen={compOpen}
+        onClose={() => setCompOpen(false)}
+        title="Días Compensatorios"
+        monthLabel={formattedMonth}
+        days={compDays}
+        footer={
+          <div className="flex-between">
+            <span className="text-sm text-secondary">
+              {compDays.length} día{compDays.length === 1 ? '' : 's'} ganado{compDays.length === 1 ? '' : 's'}
+            </span>
+            <span className="font-bold text-blue">Por feriados/domingos</span>
+          </div>
+        }
+        emptyMessage="Sin días compensatorios ganados este mes."
+      />
+      <DayListModal
+        isOpen={apoyoOpen}
+        onClose={() => setApoyoOpen(false)}
+        title="Días Apoyo TAP"
+        monthLabel={formattedMonth}
+        days={apoyoDays}
+        footer={
+          <div className="flex-between">
+            <span className="text-sm text-secondary">
+              {apoyoDays.length} día{apoyoDays.length === 1 ? '' : 's'} × {formatCLP(params.tadRate)}
+            </span>
+            <span className="font-bold text-green">{formatCLP(apoyoBonusTotal)}</span>
+          </div>
+        }
+        emptyMessage="Sin días de apoyo TAP este mes."
+      />
+      <DayListModal
+        isOpen={contOpen}
+        onClose={() => setContOpen(false)}
+        title="Días Contingencia"
+        monthLabel={formattedMonth}
+        days={contDays}
+        footer={
+          <div className="flex-between">
+            <span className="text-sm text-secondary">
+              {contDays.length} día{contDays.length === 1 ? '' : 's'} × {formatCLP(params.contingencyRate)}
+            </span>
+            <span className="font-bold text-green">{formatCLP(contBonusTotal)}</span>
+          </div>
+        }
+        emptyMessage="Sin días de contingencia este mes."
+        addLabel="Ingresar Disposición"
+        onAdd={() => { setContOpen(false); setQuickAddType('Contingencia'); }}
       />
     </div>
   );

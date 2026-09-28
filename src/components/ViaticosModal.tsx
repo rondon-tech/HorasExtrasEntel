@@ -5,17 +5,11 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAppContext } from '../context/AppContext';
 import { formatCLP } from '../utils/format';
+import { formatShortDate } from '../utils/dates';
 
 interface ViaticosModalProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-/** Formatea 'YYYY-MM-DD' en fecha local (sin desfase de zona horaria). */
-function formatExpenseDate(isoDate: string): string {
-  const [y, m, d] = isoDate.split('-').map(Number);
-  if (!y || !m || !d) return isoDate;
-  return format(new Date(y, m - 1, d), "EEEE dd/MM", { locale: es });
 }
 
 const ViaticosModal: React.FC<ViaticosModalProps> = ({ isOpen, onClose }) => {
@@ -84,7 +78,7 @@ const ViaticosModal: React.FC<ViaticosModalProps> = ({ isOpen, onClose }) => {
               {monthExpenses.map((e) => (
                 <div key={e.id} className="flex-between" style={{ background: 'rgba(0,0,0,0.2)', padding: '0.75rem 1rem', borderRadius: '0.5rem', gap: '0.75rem' }}>
                   <div style={{ minWidth: 0 }}>
-                    <p className="font-bold text-sm m-0" style={{ textTransform: 'capitalize' }}>{formatExpenseDate(e.date)}</p>
+                    <p className="font-bold text-sm m-0" style={{ textTransform: 'capitalize' }}>{formatShortDate(e.date)}</p>
                     <p className="text-xs text-muted m-0" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.description}</p>
                   </div>
                   <span className="badge" style={{ whiteSpace: 'nowrap' }}>{e.nemonico}</span>
