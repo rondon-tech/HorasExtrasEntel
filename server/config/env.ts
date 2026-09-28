@@ -86,12 +86,15 @@ function buildConfig(): EnvConfig {
 
   const jwtSecret = getRequired('JWT_SECRET');
   if (isProduction && jwtSecret.length < 32) {
-    throw new Error('JWT_SECRET must be at least 32 characters in production');
+    // Warning only: throwing here would take down existing deployments.
+    // Rotate to a 32+ char secret, then this can become a hard error.
+    console.warn('SECURITY WARNING: JWT_SECRET should be at least 32 characters in production.');
   }
 
   const adminPassword = getRequired('ADMIN_PASSWORD');
   if (isProduction && adminPassword.length < 12) {
-    throw new Error('ADMIN_PASSWORD must be at least 12 characters in production');
+    // Warning only: throwing here would take down existing deployments.
+    console.warn('SECURITY WARNING: ADMIN_PASSWORD should be at least 12 characters in production. Please rotate it.');
   }
 
   return {

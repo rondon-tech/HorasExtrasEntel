@@ -23,7 +23,9 @@ const agentLimiter = rateLimit({
   limit: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.user?.id || req.ip,
+  // Default IP-based key: this limiter runs before requireAuth, so req.user
+  // is always undefined here. (A custom keyGenerator without the
+  // ipKeyGenerator helper also trips express-rate-limit's IPv6 validation.)
   message: { error: 'Demasiadas consultas al asistente. Espera un minuto.' },
 });
 
