@@ -120,7 +120,7 @@ export const authController = {
 
       logAudit({ action: 'REGISTER', entity: 'users', entityId: userId, changedBy: req.user?.username, userId });
 
-      res.status(201).json({ token, userId, tempPassword });
+      res.status(201).json({ token, userId });
     } catch (err) {
       next(err);
     }

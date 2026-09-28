@@ -9,11 +9,8 @@ export const apiClient = axios.create({
 
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth_token');
-  console.log('[API Interceptor] Token exists in localStorage:', !!token, '| URL:', config.url, '| Method:', config.method?.toUpperCase());
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-  } else {
-    console.warn('[API Interceptor] No token found in localStorage for:', config.url);
   }
   return config;
 });
@@ -21,7 +18,7 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !error.config?.url?.includes('/login')) {
       window.dispatchEvent(new CustomEvent('auth:unauthorized'));
     }
     
@@ -31,6 +28,7 @@ apiClient.interceptors.response.use(
       const enhancedError = new Error(message);
       (enhancedError as any).serverData = serverError;
       (enhancedError as any).status = error.response.status;
+      (enhancedError as any).response = error.response;
       return Promise.reject(enhancedError);
     }
     

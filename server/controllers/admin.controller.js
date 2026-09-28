@@ -16,9 +16,9 @@ export const adminController = {
   async resetPassword(req, res, next) {
     try {
       const userId = req.params.id;
-      const tempPassword = await userRepository.resetPassword(userId);
+      await userRepository.resetPassword(userId);
       logAudit({ action: 'PASSWORD_RESET', entity: 'users', entityId: userId, changedBy: req.user?.username, userId: req.user?.id });
-      res.json({ tempPassword });
+      res.json({ message: 'Password reset successfully' });
     } catch (err) {
       next(err);
     }

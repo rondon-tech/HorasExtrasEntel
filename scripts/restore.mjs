@@ -1,138 +1,139 @@
 /**
- * Database Restore Script
+ * Database Restore Script (v2 — pg_restore from encrypted pg_dump snapshot)
  *
- * Downloads the latest backup from Cloudflare R2, decompresses it,
- * and restores it into the target database (DATABASE_URL_FALLBACK).
+ * 1. Downloads the latest backup pair (.dump.enc + .manifest.json) from R2.
+ * 2. Verifies SHA-256 against the manifest (detects corruption / truncation).
+ * 3. Decrypts (AES-256-GCM — authentication fails loudly on tampering).
+ * 4. pg_restore --clean --if-exists --no-owner --no-acl --single-transaction
+ *    (atomic: any error rolls everything back; true restore, not a merge).
+ * 5. Post-restore verification: row counts must match the manifest.
  *
- * Usage:  node scripts/restore.mjs
- *         DATABASE_URL_FALLBACK must be set in .env
+ * Safety gates:
+ * - RESTORE_TARGET=fallback → restores DATABASE_URL_FALLBACK.
+ * - RESTORE_TARGET=primary  → restores DATABASE_URL and ALSO requires
+ *   CONFIRM_RESTORE_PRIMARY=RESTORE-PRIMARY (typed confirmation).
+ *
+ * Usage: RESTORE_TARGET=fallback node scripts/restore.mjs
  */
 
-import { createGunzip } from 'node:zlib';
-import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import pg from 'pg';
 import dotenv from 'dotenv';
 
+import {
+  decryptBuffer,
+  downloadObject,
+  findLatestBackup,
+  getEncryptionKey,
+  getRowCounts,
+  maskDbUrl,
+  pgSsl,
+  r2Client,
+  requireEnv,
+  runCmd,
+  sha256Hex,
+  withSsl,
+} from './lib/backup-common.mjs';
+
 dotenv.config();
 
-// ---------------------------------------------------------------------------
-// Validate environment
-// ---------------------------------------------------------------------------
-const required = ['DATABASE_URL_FALLBACK', 'R2_ENDPOINT', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET'];
-for (const key of required) {
-  if (!process.env[key]) {
-    console.error(`ERROR: Missing required environment variable: ${key}`);
+function resolveTarget() {
+  const target = requireEnv('RESTORE_TARGET');
+  if (target !== 'fallback' && target !== 'primary') {
+    console.error('ERROR: RESTORE_TARGET must be "fallback" or "primary". Refusing to guess.');
     process.exit(1);
   }
-}
-
-// ---------------------------------------------------------------------------
-// Cloudflare R2 client
-// ---------------------------------------------------------------------------
-const r2 = new S3Client({
-  region: 'auto',
-  endpoint: process.env.R2_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-  },
-  forcePathStyle: true,
-});
-
-const BUCKET = process.env.R2_BUCKET;
-
-// ---------------------------------------------------------------------------
-// Find the most recent backup in R2
-// ---------------------------------------------------------------------------
-async function findLatestBackup() {
-  const result = await r2.send(new ListObjectsV2Command({
-    Bucket: BUCKET,
-    Prefix: 'backups/backup-',
-  }));
-
-  const backups = (result.Contents || [])
-    .filter(obj => obj.Key && obj.Key.endsWith('.sql.gz'))
-    .sort((a, b) => (b.LastModified?.getTime() || 0) - (a.LastModified?.getTime() || 0));
-
-  if (backups.length === 0) {
-    throw new Error('No backups found in R2');
-  }
-
-  console.log(`Found ${backups.length} backup(s). Latest: ${backups[0].Key} (${backups[0].LastModified?.toISOString()})`);
-  return backups[0];
-}
-
-// ---------------------------------------------------------------------------
-// Download and decompress backup
-// ---------------------------------------------------------------------------
-async function downloadBackup(key) {
-  const response = await r2.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
-  const chunks = [];
-
-  const gunzip = createGunzip();
-  await new Promise((resolve, reject) => {
-    response.Body
-      .pipe(gunzip)
-      .on('data', (chunk) => chunks.push(chunk))
-      .on('end', resolve)
-      .on('error', reject);
-  });
-
-  return Buffer.concat(chunks).toString('utf-8');
-}
-
-// ---------------------------------------------------------------------------
-// Execute SQL against target database
-// ---------------------------------------------------------------------------
-async function executeSQL(sql) {
-  const { Pool } = pg;
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL_FALLBACK,
-    ssl: { rejectUnauthorized: false },
-  });
-
-  console.log('Connected to target database. Executing SQL...');
-
-  // Split by INSERT statements (skip comments)
-  const statements = sql
-    .split('\n')
-    .filter(line => !line.startsWith('--') && line.trim().length > 0);
-
-  let executed = 0;
-  for (const statement of statements) {
-    try {
-      await pool.query(statement);
-      executed++;
-    } catch (err) {
-      // Skip duplicate key errors (data already exists)
-      if (err.code === '23505') continue;
-      console.warn(`WARN: ${err.message.slice(0, 80)}`);
+  if (target === 'primary') {
+    if (process.env.CONFIRM_RESTORE_PRIMARY !== 'RESTORE-PRIMARY') {
+      console.error('ERROR: Refusing to restore PRIMARY without CONFIRM_RESTORE_PRIMARY=RESTORE-PRIMARY.');
+      process.exit(1);
     }
+    console.error('!!! RESTORING PRIMARY DATABASE — DESTRUCTIVE !!!');
+    return withSsl(requireEnv('DATABASE_URL'));
   }
-
-  console.log(`Executed ${executed} INSERT statements.`);
-  await pool.end();
+  return withSsl(requireEnv('DATABASE_URL_FALLBACK'));
 }
 
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
 async function main() {
   console.log('Starting database restore from R2...');
 
-  const backup = await findLatestBackup();
-  console.log(`Downloading ${backup.Key}...`);
-  const sql = await downloadBackup(backup.Key);
-  console.log(`Downloaded ${(sql.length / 1024).toFixed(1)} KB`);
+  const targetUrl = resolveTarget();
+  const bucket = requireEnv('R2_BUCKET');
+  const key = getEncryptionKey();
+  const r2 = r2Client();
 
-  await executeSQL(sql);
+  console.log(`  Target: ${maskDbUrl(targetUrl)}`);
 
-  console.log('Restore complete.');
-  console.log('Run `npm run migrate` on the fallback DB if schema updates are needed.');
-  process.exit(0);
+  const backup = await findLatestBackup(r2, bucket);
+  console.log(`  Backup: ${backup.key} (${backup.lastModified?.toISOString()})`);
+
+  console.log('Downloading backup + manifest...');
+  const [blob, manifestRaw] = await Promise.all([
+    downloadObject(r2, bucket, backup.key),
+    downloadObject(r2, bucket, backup.manifestKey),
+  ]);
+  const manifest = JSON.parse(manifestRaw.toString('utf-8'));
+
+  console.log('Verifying SHA-256...');
+  const digest = sha256Hex(blob);
+  if (digest !== manifest.sha256) {
+    throw new Error(`Digest mismatch: manifest ${manifest.sha256}, actual ${digest}. Backup corrupt — aborting.`);
+  }
+  console.log('  Digest OK.');
+
+  console.log('Decrypting...');
+  let dump;
+  try {
+    dump = decryptBuffer(blob, key);
+  } catch {
+    throw new Error('Decryption failed (wrong BACKUP_ENCRYPTION_KEY or tampered file). Aborting.');
+  }
+
+  const workdir = mkdtempSync(join(tmpdir(), 'hhee-restore-'));
+  const { Pool } = pg;
+  const pool = new Pool({ connectionString: targetUrl, ssl: pgSsl() });
+
+  try {
+    const dumpFile = join(workdir, 'backup.dump');
+    writeFileSync(dumpFile, dump);
+
+    console.log('Running pg_restore (single transaction, atomic)...');
+    await runCmd('pg_restore', [
+      '--clean',
+      '--if-exists',
+      '--no-owner',
+      '--no-acl',
+      '--single-transaction',
+      `--dbname=${targetUrl}`,
+      dumpFile,
+    ]);
+    console.log('  pg_restore finished.');
+
+    console.log('Verifying row counts against manifest...');
+    const actual = await getRowCounts(pool);
+    const failures = [];
+    for (const [table, expected] of Object.entries(manifest.tables || {})) {
+      if (!(table in actual)) {
+        failures.push(`${table}: expected ${expected} rows, table missing after restore`);
+      } else if (actual[table] !== expected) {
+        failures.push(`${table}: manifest ${expected} vs restored ${actual[table]}`);
+      } else {
+        console.log(`  OK ${table}: ${actual[table]} rows`);
+      }
+    }
+    if (failures.length > 0) {
+      throw new Error('Post-restore verification FAILED: ' + failures.join('; '));
+    }
+    console.log('Restore complete and verified.');
+  } finally {
+    rmSync(workdir, { recursive: true, force: true });
+    await pool.end();
+  }
 }
 
-main().catch(err => {
-  console.error('Restore failed:', err.message);
+main().catch((err) => {
+  console.error('Restore FAILED:', err.message);
   process.exit(1);
 });

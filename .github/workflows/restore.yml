@@ -11,10 +11,20 @@ on:
           - fallback
           - primary
         required: true
+      confirm:
+        description: 'Type RESTORE-PRIMARY to confirm a primary restore'
+        type: string
+        default: ''
+        required: false
+
+permissions:
+  contents: read
 
 jobs:
-  restore:
+  restore-fallback:
+    if: inputs.environment == 'fallback'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v4
@@ -26,22 +36,50 @@ jobs:
 
       - run: npm ci
 
+      - name: Install pg_restore
+        run: which pg_restore || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+
       - name: Restore to fallback
-        if: inputs.environment == 'fallback'
         run: node scripts/restore.mjs
         env:
+          RESTORE_TARGET: fallback
           DATABASE_URL_FALLBACK: ${{ secrets.DATABASE_URL_FALLBACK }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
 
+  restore-primary:
+    # DANGER ZONE: requires typed confirmation AND the `production`
+    # environment (configure required reviewers in repo settings).
+    if: inputs.environment == 'primary' && inputs.confirm == 'RESTORE-PRIMARY'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install pg_restore
+        run: which pg_restore || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+
       - name: Restore to primary (DANGER ZONE)
-        if: inputs.environment == 'primary'
         run: |
-          echo "⚠️  RESTORING TO PRIMARY DATABASE"
-          DATABASE_URL_FALLBACK="${{ secrets.DATABASE_URL }}" node scripts/restore.mjs
+          echo "RESTORING TO PRIMARY DATABASE"
+          node scripts/restore.mjs
         env:
+          RESTORE_TARGET: primary
+          CONFIRM_RESTORE_PRIMARY: RESTORE-PRIMARY
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

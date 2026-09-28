@@ -1,15 +1,13 @@
-version: "3.9"
-
 services:
   # PostgreSQL for local development (Neon.tech in production)
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: entel
-      POSTGRES_PASSWORD: entel_dev
+      POSTGRES_USER: "${POSTGRES_USER:-entel}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-entel_dev}"
       POSTGRES_DB: horas_extras
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -29,10 +27,10 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://entel:entel_dev@db:5432/horas_extras
-      JWT_SECRET: "${JWT_SECRET:-dev-secret-for-local-only}"
-      ADMIN_USER: "${ADMIN_USER:-admin}"
-      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-changeme}"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-entel}:${POSTGRES_PASSWORD:-entel_dev}@db:5432/horas_extras"
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET es obligatorio}"
+      ADMIN_USER: "${ADMIN_USER:?ADMIN_USER es obligatorio}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?ADMIN_PASSWORD es obligatorio}"
       PORT: "3001"
     restart: unless-stopped
     healthcheck:

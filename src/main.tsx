@@ -10,6 +10,13 @@ import { AuthProvider } from './context/AuthContext'
 
 const queryClient = new QueryClient()
 
+window.addEventListener('auth:cleared', () => {
+  queryClient.clear();
+});
+window.addEventListener('auth:unauthorized', () => {
+  queryClient.clear();
+});
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>

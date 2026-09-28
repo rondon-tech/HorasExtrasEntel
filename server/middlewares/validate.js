@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import xss from 'xss';
 import { logger } from '../utils/logger.js';
 
@@ -38,19 +37,20 @@ export const validate = (schema) => (req, res, next) => {
     logger.warn('Validation failed:', {
       path: req.path,
       method: req.method,
-      errors: result.error.errors,
-      body: req.body,
+      errors: result.error.errors.map(e => ({ path: e.path, message: e.message })),
     });
     
     return res.status(400).json({
       error: 'Validation Error',
-      details: result.error.errors,
+      details: result.error.errors.map(e => ({ path: e.path, message: e.message })),
     });
   }
 
   const sanitized = sanitizeStrings(result.data);
 
   req.body = sanitized.body;
+  if (sanitized.query) req.query = sanitized.query;
+  if (sanitized.params) req.params = sanitized.params;
 
   next();
 };

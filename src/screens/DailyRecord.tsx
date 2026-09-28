@@ -32,6 +32,15 @@ const DailyRecord: React.FC = () => {
   const chunksRef = React.useRef<Blob[]>([]);
 
   useEffect(() => {
+    return () => {
+      if (mediaRef.current && mediaRef.current.state !== 'inactive') {
+        mediaRef.current.stop();
+      }
+      mediaRef.current?.stream.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
+
+  useEffect(() => {
     if (editingId) {
       const record = records.find(r => r.id === editingId);
       if (record) {

@@ -1,11 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { apiClient } from '../api/client';
 
-function decodeJWT(token: string | null): { id?: string; role?: string; passwordChangeRequired?: boolean } | null {
+function decodeJWT(token: string | null): { id?: string; role?: string; passwordChangeRequired?: boolean; exp?: number } | null {
   if (!token) return null;
   try {
     const payload = token.split('.')[1];
-    return JSON.parse(atob(payload));
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const decoded = JSON.parse(atob(padded));
+    if (decoded.exp && decoded.exp * 1000 < Date.now()) return null;
+    return decoded;
   } catch {
     return null;
   }
@@ -83,6 +87,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = useCallback(() => {
     setToken(null);
+    localStorage.removeItem('auth_token');
+    window.dispatchEvent(new CustomEvent('auth:cleared'));
   }, []);
 
   return (

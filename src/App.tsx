@@ -117,8 +117,9 @@ function Layout() {
           <Route path="/records" element={<ErrorBoundary><RecordsList /></ErrorBoundary>} />
           <Route path="/simulator" element={<ErrorBoundary><Simulator /></ErrorBoundary>} />
           <Route path="/settings" element={<ErrorBoundary><History /></ErrorBoundary>} />
-          <Route path="/register" element={<ErrorBoundary><Register /></ErrorBoundary>} />
-          <Route path="/admin" element={<ErrorBoundary><AdminPanel /></ErrorBoundary>} />
+          <Route path="/register" element={<AdminGuard redirect><ErrorBoundary><Register /></ErrorBoundary></AdminGuard>} />
+          <Route path="/admin" element={<AdminGuard redirect><ErrorBoundary><AdminPanel /></ErrorBoundary></AdminGuard>} />
+          <Route path="/change-password" element={<ErrorBoundary><ChangePassword /></ErrorBoundary>} />
           <Route path="/profile" element={<ErrorBoundary><Profile /></ErrorBoundary>} />
         </Routes>
         </Suspense>

@@ -22,10 +22,11 @@ export const emailService = {
       '',
       'Debe cambiar su contraseña en el primer inicio de sesión.',
     ].join('\n');
+    void text; // used when Resend is activated
 
     console.log(`[EMAIL] To: ${to}`);
     console.log(`[EMAIL] Subject: ${subject}`);
-    console.log(`[EMAIL] Body:\n${text}`);
+    console.log(`[EMAIL] Body: [REDACTED - contains temporary password]`);
 
     // --- Activar cuando se configure RESEND_API_KEY ---
     // const resend = new Resend(process.env.RESEND_API_KEY);

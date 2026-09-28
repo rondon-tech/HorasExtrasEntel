@@ -12,10 +12,12 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const ROOT_URL = pathToFileURL(ROOT + (ROOT.endsWith('/') || ROOT.endsWith('\\') ? '' : '/')).href;
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 
-for (const line of fs.readFileSync(`${ROOT}/.env`, 'utf8').split(/\r?\n/)) {
-  const m = /^([A-Z_]+)="?([^"#]*)"?$/.exec(line.trim());
-  if (m && !(m[1] in process.env)) process.env[m[1]] = m[2];
-}
+try {
+  for (const line of fs.readFileSync(`${ROOT}/.env`, 'utf8').split(/\r?\n/)) {
+    const m = /^([A-Z_]+)="?([^"#]*)"?$/.exec(line.trim());
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2];
+  }
+} catch { /* .env not found */ }
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');

@@ -1,6 +1,6 @@
 import { logger } from '../utils/logger.js';
 
-const SENSITIVE_KEYS = ['password', 'oldPassword', 'newPassword', 'tempPassword', 'token', 'authorization'];
+const SENSITIVE_KEYS = ['password', 'oldPassword', 'newPassword', 'tempPassword', 'token', 'authorization', 'email', 'phone', 'firstName', 'lastName', 'username', 'nemonico', 'sitio', 'tarea'];
 
 const redactBody = (body) => {
   if (!body || typeof body !== 'object') return body;

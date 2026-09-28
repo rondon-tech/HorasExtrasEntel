@@ -82,11 +82,23 @@ function getBoolean(name: string, defaultValue: boolean): boolean {
 
 function buildConfig(): EnvConfig {
   const nodeEnv = getOptional('NODE_ENV', 'development');
+  const isProduction = nodeEnv === 'production';
+
+  const jwtSecret = getRequired('JWT_SECRET');
+  if (isProduction && jwtSecret.length < 32) {
+    throw new Error('JWT_SECRET must be at least 32 characters in production');
+  }
+
+  const adminPassword = getRequired('ADMIN_PASSWORD');
+  if (isProduction && adminPassword.length < 12) {
+    throw new Error('ADMIN_PASSWORD must be at least 12 characters in production');
+  }
+
   return {
     DATABASE_URL: getRequired('DATABASE_URL'),
-    JWT_SECRET: getRequired('JWT_SECRET'),
+    JWT_SECRET: jwtSecret,
     ADMIN_USER: getRequired('ADMIN_USER'),
-    ADMIN_PASSWORD: getRequired('ADMIN_PASSWORD'),
+    ADMIN_PASSWORD: adminPassword,
     PORT: Number(getOptional('PORT', '3001')),
     FRONTEND_URL: getOptional('FRONTEND_URL', ''),
     NODE_ENV: nodeEnv,

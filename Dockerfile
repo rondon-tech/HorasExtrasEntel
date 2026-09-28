@@ -10,11 +10,14 @@ RUN npm run build
 FROM node:22-alpine AS prod
 WORKDIR /app
 COPY --from=build /app/package.json /app/package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/api ./api
+COPY --from=build /app/server ./server
 COPY --from=build /app/migrate.mjs ./
 
+RUN chown -R node:node /app
+USER node
 ENV NODE_ENV=production
 EXPOSE 3001
-CMD ["node", "api/index.js"]
+CMD ["npx", "tsx", "api/index.js"]

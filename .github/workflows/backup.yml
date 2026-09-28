@@ -5,9 +5,14 @@ on:
     - cron: '0 */2 * * *'      # every 2 hours
   workflow_dispatch:             # manual trigger from GitHub UI
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   backup:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -19,10 +24,14 @@ jobs:
 
       - run: npm ci
 
+      - name: Install pg_dump
+        run: which pg_dump || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+
       - name: Run backup
         run: node scripts/backup.mjs
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -31,3 +40,16 @@ jobs:
       - name: Notify success
         if: success()
         run: echo "Backup completed and uploaded to R2."
+
+      - name: Open issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `BACKUP FALLO: ${new Date().toISOString().slice(0, 10)}`,
+              body: `El workflow de backup fallo (${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}). Revisar urgente: sin backups la ventana de perdida de datos crece.`,
+              labels: ['backup', 'urgent'],
+            });

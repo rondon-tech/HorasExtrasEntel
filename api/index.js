@@ -51,11 +51,7 @@ app.use(express.json({ limit: '1mb' }));
 if (configError) {
   app.use(cors());
   app.use((_req, res) => {
-    res.status(500).json({
-      error: 'Server configuration error',
-      message: configError.message,
-      hint: 'Set the required environment variables (JWT_SECRET, ADMIN_USER, ADMIN_PASSWORD, FRONTEND_URL) in your Vercel project settings or .env file.',
-    });
+    res.status(500).json({ error: 'Server configuration error' });
   });
   logger.error(`FATAL: ${configError.message}`);
 } else {
@@ -74,36 +70,51 @@ if (configError) {
 
   const { authRouter } = authRouterModule;
 
-  // Strict CORS: allow localhost for dev, FRONTEND_URL for prod,
-  // and Vercel preview/git-branch deployment URLs (e.g. *.vercel.app).
+  // Strict CORS: allow localhost for dev and FRONTEND_URL for prod.
   const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3001',
-  ].filter(Boolean);
+  ];
   if (env.FRONTEND_URL) allowedOrigins.push(env.FRONTEND_URL);
 
   app.use(cors({
     origin: function(origin, callback) {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
-      } else if (origin.endsWith('.vercel.app')) {
-        callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
       }
     },
-    credentials: true,
+    credentials: false,
   }));
 
-  // Log all incoming requests
+  // Global rate limiting
+  const { rateLimit } = await import('express-rate-limit');
+  app.use('/api', rateLimit({
+    windowMs: 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+  }));
+
+  // Log all incoming requests (no query strings to avoid PII)
   app.use((req, res, next) => {
-    logger.info(`${req.method} ${req.url}`);
+    logger.info(`${req.method} ${req.path}`);
     next();
   });
 
   app.use('/api', authRouter);
   app.use('/api/params', paramsRouter);
-  app.get('/api/payroll/:year/:month', requireAuth, requirePasswordChanged, payrollController.get);
+  app.get('/api/payroll/:year/:month', requireAuth, requirePasswordChanged, (req, res, next) => {
+    const year = Number(req.params.year);
+    const month = Number(req.params.month);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100 || !Number.isInteger(month) || month < 1 || month > 12) {
+      return res.status(400).json({ error: 'Invalid year or month' });
+    }
+    req.params.year = String(year);
+    req.params.month = String(month);
+    next();
+  }, payrollController.get);
   app.use('/api/records', recordRouter);
   app.use('/api/expenses', expenseRouter);
   app.use('/api/admin', adminRouter);
@@ -120,16 +131,10 @@ if (configError) {
   });
 
   if (!env.isProduction) {
-    app.get('/api/debug/db-check', requireAuth, async (req, res) => {
+    const { requireRole } = await import('../server/middlewares/role.js');
+    app.get('/api/debug/db-check', requireAuth, requireRole('global_admin'), async (req, res) => {
       try {
         const userId = req.user.id;
-
-        const tableCheck = await pool.query(`
-          SELECT column_name, data_type, is_nullable
-          FROM information_schema.columns
-          WHERE table_name = 'records'
-          ORDER BY ordinal_position
-        `);
 
         const userCheck = await pool.query(
           'SELECT id, username, role FROM users WHERE id = $1',
@@ -144,17 +149,11 @@ if (configError) {
         res.json({
           userId,
           user: userCheck.rows[0] || null,
-          recordsTable: tableCheck.rows,
           userRecordCount: recordCount.rows[0]?.count || 0,
           timestamp: new Date().toISOString(),
         });
-      } catch (err) {
-        res.status(500).json({
-          error: err.message,
-          code: err.code,
-          detail: err.detail,
-          stack: err.stack,
-        });
+      } catch {
+        res.status(500).json({ error: 'DB check failed' });
       }
     });
   }

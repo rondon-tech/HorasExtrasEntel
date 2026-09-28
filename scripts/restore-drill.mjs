@@ -1,167 +1,158 @@
 /**
- * A5 restore drill — verifies the latest R2 backup is restorable and complete.
+ * A5 restore drill — proves the latest R2 backup is restorable and complete.
  *
- * 1. Lists R2 backups, picks the most recent (must be < MAX_AGE_HOURS old).
- * 2. Connects to the DRILL database (DRILL_DATABASE_URL, ephemeral, never production).
- * 3. Applies schema migrations, wipes data, executes the backup INSERTs.
- * 4. Validates: all critical tables exist and row counts match the backup's.
+ * 1. Latest backup must exist and be fresh (< MAX_AGE_HOURS old).
+ * 2. SHA-256 verified against manifest; AES-256-GCM decrypted.
+ * 3. Schema migrations applied to the drill DB, then pg_restore --clean.
+ * 4. Validates: row counts match manifest, critical tables exist,
+ *    users table non-empty, every JSON/JSONB value is structurally valid
+ *    (catches the "[object Object]" corruption class at restore time).
+ *
+ * Safety: refuses to run unless DRILL_CONFIRM_NOT_PRODUCTION=1, so a
+ * misconfigured DRILL_DATABASE_URL can never wipe production.
  *
  * Exits non-zero on any failure (alertable via GitHub Actions).
  * Usage: npx tsx scripts/restore-drill.mjs
  */
-import { createGunzip } from 'node:zlib';
-import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import pg from 'pg';
 import { runner as runMigrations } from 'node-pg-migrate';
-import fs from 'fs';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+import {
+  decryptBuffer,
+  downloadObject,
+  findLatestBackup,
+  getEncryptionKey,
+  getRowCounts,
+  maskDbUrl,
+  pgSsl,
+  r2Client,
+  requireEnv,
+  runCmd,
+  sha256Hex,
+  withSsl,
+} from './lib/backup-common.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-
-for (const line of fs.readFileSync(`${ROOT}/.env`, 'utf8').split(/\r?\n/)) {
-  const m = /^([A-Z_]+)="?([^"#]*)"?$/.exec(line.trim());
-  if (m && !(m[1] in process.env)) process.env[m[1]] = m[2];
-}
-
-const required = ['R2_ENDPOINT', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET', 'DRILL_DATABASE_URL'];
-for (const key of required) {
-  if (!process.env[key]) {
-    console.error(`ERROR: Missing required environment variable: ${key}`);
-    process.exit(1);
-  }
-}
+dotenv.config({ path: `${ROOT}.env` });
 
 const MAX_AGE_HOURS = 26;
-const CRITICAL_TABLES = ['users', 'records', 'expenses', 'params', 'audit_log', 'agent_anomalies'];
+const CRITICAL_TABLES = ['users', 'records', 'expenses', 'params', 'audit_log'];
 
-const r2 = new S3Client({
-  region: 'auto',
-  endpoint: process.env.R2_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-  },
-  forcePathStyle: true,
-});
-
-async function findLatestBackup() {
-  const { Contents } = await r2.send(new ListObjectsV2Command({ Bucket: process.env.R2_BUCKET, Prefix: 'backups/' }));
-  const backups = (Contents || []).filter((o) => o.Key.endsWith('.sql.gz')).sort((a, b) => b.LastModified - a.LastModified);
-  if (backups.length === 0) throw new Error('No hay backups en el bucket.');
-  const latest = backups[0];
-  const ageHours = (Date.now() - latest.LastModified.getTime()) / 3600000;
-  console.log(`Ultimo backup: ${latest.Key} (${ageHours.toFixed(1)}h de antiguedad)`);
-  if (ageHours > MAX_AGE_HOURS) {
-    throw new Error(`BACKUP STALE: el ultimo backup tiene ${ageHours.toFixed(1)}h (max ${MAX_AGE_HOURS}h). Revisar workflow de backup.`);
+async function checkJsonColumns(pool) {
+  const { rows: cols } = await pool.query(`
+    SELECT table_name, column_name FROM information_schema.columns
+    WHERE table_schema = 'public' AND data_type IN ('json', 'jsonb')
+  `);
+  const failures = [];
+  for (const { table_name, column_name } of cols) {
+    // A corrupt dump (e.g. JS "[object Object]" stringified into JSON)
+    // shows up here as a literal '[object Object]' text value.
+    const { rows } = await pool.query(
+      `SELECT COUNT(*)::int AS total,
+              SUM(CASE WHEN "${column_name}"::text = '[object Object]' THEN 1 ELSE 0 END)::int AS corrupt
+       FROM "${table_name}" WHERE "${column_name}" IS NOT NULL`,
+    );
+    console.log(`  JSON probe ${table_name}.${column_name}: ${rows[0].total} values, ${rows[0].corrupt} corrupt`);
+    if (rows[0].corrupt > 0) failures.push(`${table_name}.${column_name}: ${rows[0].corrupt} corrupt JSON values`);
   }
-  return latest;
-}
-
-async function downloadBackup(key) {
-  const response = await r2.send(new GetObjectCommand({ Bucket: process.env.R2_BUCKET, Key: key }));
-  const chunks = [];
-  const gunzip = createGunzip();
-  await new Promise((resolve, reject) => {
-    response.Body.pipe(gunzip).on('data', (c) => chunks.push(c)).on('end', resolve).on('error', reject);
-  });
-  return Buffer.concat(chunks).toString('utf-8');
-}
-
-function extractInserts(sql) {
-  const statements = [];
-  let current = [];
-  for (const line of sql.split('\n')) {
-    if (line.startsWith('--') || line.trim() === '' || line.startsWith('BEGIN') || line.startsWith('COMMIT')) {
-      if (current.length) { statements.push(current.join('\n')); current = []; }
-      continue;
-    }
-    if (line.trim().endsWith(';')) {
-      current.push(line);
-      statements.push(current.join('\n'));
-      current = [];
-      continue;
-    }
-    if (current.length || line.trim().toUpperCase().startsWith('INSERT')) {
-      current.push(line);
-    }
-  }
-  return statements.filter((s) => s.toUpperCase().includes('INSERT'));
-}
-
-function countRowsPerTable(sql) {
-  const counts = {};
-  for (const stmt of extractInserts(sql)) {
-    const m = /INSERT INTO (\w+)/i.exec(stmt);
-    if (m) counts[m[1]] = (counts[m[1]] || 0) + 1;
-  }
-  return counts;
+  return failures;
 }
 
 async function main() {
   console.log('=== A5 RESTORE DRILL ===');
 
-  const backup = await findLatestBackup();
-  const sql = await downloadBackup(backup.Key);
-  console.log(`Backup descargado: ${(sql.length / 1024).toFixed(1)} KB`);
+  if (process.env.DRILL_CONFIRM_NOT_PRODUCTION !== '1') {
+    console.error('ERROR: Refusing to run without DRILL_CONFIRM_NOT_PRODUCTION=1.');
+    console.error('This guard prevents wiping production if DRILL_DATABASE_URL is misconfigured.');
+    process.exit(1);
+  }
 
-  const expected = countRowsPerTable(sql);
-  const expectedTables = Object.keys(expected);
-  console.log(`Tablas en el backup: ${expectedTables.join(', ') || '(ninguna)'}`);
+  const bucket = requireEnv('R2_BUCKET');
+  const drillUrl = withSsl(requireEnv('DRILL_DATABASE_URL'));
+  const key = getEncryptionKey();
+  const r2 = r2Client();
 
-  const pool = new pg.Pool({ connectionString: process.env.DRILL_DATABASE_URL, ssl: { rejectUnauthorized: false } });
+  console.log(`  Drill DB: ${maskDbUrl(drillUrl)}`);
 
-  console.log('Aplicando migraciones a la BD de drill...');
-  await runMigrations({
-    databaseUrl: process.env.DRILL_DATABASE_URL,
-    migrationsTable: 'pgmigrations',
-    dir: `${ROOT}server/migrations`,
-    direction: 'up',
-    count: Infinity,
-    log: () => {},
-  });
+  const backup = await findLatestBackup(r2, bucket);
+  const ageHours = (Date.now() - backup.lastModified.getTime()) / 3600000;
+  console.log(`  Latest backup: ${backup.key} (${ageHours.toFixed(1)}h old)`);
+  if (ageHours > MAX_AGE_HOURS) {
+    throw new Error(`BACKUP STALE: latest backup is ${ageHours.toFixed(1)}h old (max ${MAX_AGE_HOURS}h). Check backup workflow.`);
+  }
 
-  await pool.query('BEGIN');
+  const [blob, manifestRaw] = await Promise.all([
+    downloadObject(r2, bucket, backup.key),
+    downloadObject(r2, bucket, backup.manifestKey),
+  ]);
+  const manifest = JSON.parse(manifestRaw.toString('utf-8'));
+  if (sha256Hex(blob) !== manifest.sha256) {
+    throw new Error('Digest mismatch — backup corrupt. Aborting drill.');
+  }
+  console.log('  Digest OK.');
+  const dump = decryptBuffer(blob, key);
+  console.log(`  Decrypted ${(dump.length / 1024).toFixed(1)} KB.`);
+
+  const { Pool } = pg;
+  const pool = new Pool({ connectionString: drillUrl, ssl: pgSsl() });
+  const workdir = mkdtempSync(join(tmpdir(), 'hhee-drill-'));
+
   try {
-    for (const table of expectedTables) {
-      await pool.query(`DELETE FROM ${table}`);
-    }
-    let executed = 0;
-    for (const stmt of extractInserts(sql)) {
-      try {
-        await pool.query(stmt);
-        executed++;
-      } catch (err) {
-        if (err.code === '23505') continue;
-        throw err;
-      }
-    }
-    console.log(`INSERTs ejecutados: ${executed}`);
+    console.log('Applying migrations to drill DB...');
+    await runMigrations({
+      databaseUrl: drillUrl,
+      migrationsTable: 'pgmigrations',
+      dir: `${ROOT}server/migrations`,
+      direction: 'up',
+      count: Infinity,
+      log: () => {},
+    });
 
+    const dumpFile = join(workdir, 'backup.dump');
+    writeFileSync(dumpFile, dump);
+
+    console.log('Restoring into drill DB (pg_restore --clean)...');
+    await runCmd('pg_restore', [
+      '--clean',
+      '--if-exists',
+      '--no-owner',
+      '--no-acl',
+      `--dbname=${drillUrl}`,
+      dumpFile,
+    ]);
+
+    console.log('Verifying row counts against manifest...');
+    const actual = await getRowCounts(pool);
     const failures = [];
-    for (const table of expectedTables) {
-      const { rows } = await pool.query(`SELECT COUNT(*)::int AS c FROM ${table}`);
-      const actual = rows[0].c;
-      const expectedCount = expected[table];
-      if (actual !== expectedCount) {
-        failures.push(`${table}: backup ${expectedCount} vs drill ${actual}`);
+    for (const [table, expected] of Object.entries(manifest.tables || {})) {
+      if (!(table in actual)) {
+        failures.push(`${table}: expected ${expected} rows, table missing`);
+      } else if (actual[table] !== expected) {
+        failures.push(`${table}: manifest ${expected} vs drill ${actual[table]}`);
       } else {
-        console.log(`  OK ${table}: ${actual} filas`);
+        console.log(`  OK ${table}: ${actual[table]} rows`);
       }
     }
     for (const t of CRITICAL_TABLES) {
-      if (!expectedTables.includes(t) && t !== 'agent_anomalies') {
-        console.log(`  (nota) ${t} sin datos en este backup`);
-      }
+      if (!(t in actual)) failures.push(`critical table missing after restore: ${t}`);
     }
-    if (failures.length) {
-      throw new Error('Conteos difieren: ' + failures.join('; '));
-    }
-    console.log('=== DRILL EXITOSO: backup restaurable y consistente ===');
+    const { rows: u } = await pool.query('SELECT COUNT(*)::int AS c FROM users');
+    if (u[0].c < 1) failures.push('users table empty after restore');
+
+    failures.push(...(await checkJsonColumns(pool)));
+
+    if (failures.length > 0) throw new Error('Drill verification FAILED: ' + failures.join('; '));
+    console.log('=== DRILL EXITOSO: backup restaurable, completo y semanticamente valido ===');
   } finally {
-    await pool.query('ROLLBACK');
+    rmSync(workdir, { recursive: true, force: true });
     await pool.end();
   }
-  process.exit(0);
 }
 
 main().catch((err) => {

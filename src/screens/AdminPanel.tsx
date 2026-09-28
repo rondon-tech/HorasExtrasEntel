@@ -415,8 +415,8 @@ const AdminPanel: React.FC = () => {
   const handleReset = async () => {
     if (!confirmReset) return;
     try {
-      const { data } = await apiClient.post(`/admin/users/${confirmReset}/reset-password`);
-      toast.success(`Contraseña reseteada. Temporal: ${data.tempPassword}`);
+      await apiClient.post(`/admin/users/${confirmReset}/reset-password`);
+      toast.success('Contraseña reseteada exitosamente.');
       setConfirmReset(null);
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Error al resetear');

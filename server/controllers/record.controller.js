@@ -24,7 +24,7 @@ export const recordController = {
   async create(req, res, next) {
     try {
       const userId = req.user.id;
-      logger.info('Creating record', { userId, body: req.body });
+      logger.info('Creating record', { userId });
       const id = await recordRepository.create(userId, req.body);
       payrollController.invalidateCache();
       clearSnapshotCache();
