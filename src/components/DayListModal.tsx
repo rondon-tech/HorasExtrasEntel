@@ -18,6 +18,8 @@ interface DayListModalProps {
   emptyMessage: string;
   addLabel?: string;
   onAdd?: () => void;
+  /** Contenido opcional sobre la lista (ej: un calendario visual del mes). */
+  calendar?: React.ReactNode;
 }
 
 /**
@@ -34,6 +36,7 @@ const DayListModal: React.FC<DayListModalProps> = ({
   emptyMessage,
   addLabel,
   onAdd,
+  calendar,
 }) => {
   useEffect(() => {
     if (!isOpen) return;
@@ -73,6 +76,7 @@ const DayListModal: React.FC<DayListModalProps> = ({
           </button>
         </div>
 
+        {calendar}
         {days.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '1rem 0' }}>
             <p className="text-sm text-secondary mb-4">{emptyMessage}</p>

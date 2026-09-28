@@ -11,6 +11,7 @@ import BentoCard from '../components/BentoCard';
 import QuickAddModal from '../components/QuickAddModal';
 import ViaticosModal from '../components/ViaticosModal';
 import DayListModal, { type DayGroup } from '../components/DayListModal';
+import MonthCalendar from '../components/MonthCalendar';
 import { monthPrefix } from '../utils/dates';
 import { Spinner } from '../components/Spinner';
 
@@ -210,6 +211,14 @@ const Dashboard: React.FC = () => {
         onClose={() => setTapOpen(false)}
         title="Días TAP"
         monthLabel={formattedMonth}
+        calendar={
+          <MonthCalendar
+            year={currentMonth.getFullYear()}
+            month={currentMonth.getMonth()}
+            marked={new Set(tapDays.map((d) => d.date))}
+            summary={`${tapDays.length} día${tapDays.length === 1 ? '' : 's'} TAP este mes`}
+          />
+        }
         days={tapDays}
         footer={
           <div className="flex-between">
