@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Download, Share2 } from 'lucide-react';
+import { Download, Share2, Eye, EyeOff } from 'lucide-react';
+import { useQueries } from '@tanstack/react-query';
+import { apiClient } from '../api/client';
 import { formatCLP, abbreviateCLP } from '../utils/format';
 import { usePayrollPDF } from '../hooks/usePayrollPDF';
-import { useProfileQuery, usePayrollQuery } from '../hooks/useApi';
+import { useProfileQuery, queryKeys } from '../hooks/useApi';
 import BentoCard from '../components/BentoCard';
 import QuickAddModal from '../components/QuickAddModal';
 import ViaticosModal from '../components/ViaticosModal';
@@ -154,22 +156,43 @@ const Dashboard: React.FC = () => {
   const { download: downloadPDF, share: sharePDF } = usePayrollPDF(appContextData, currentMonth);
   const { data: profile } = useProfileQuery();
 
-  // Historial de líquido para el mini-gráfico (mes actual + 2 anteriores).
-  // Solo se muestra cuando los 3 valores llegaron bien (nunca parciales).
-  const historyMonths = [2, 1, 0].map((back) => {
+  // Privacidad de montos (persistente).
+  const [amountsHidden, setAmountsHidden] = React.useState(
+    () => localStorage.getItem('entel_hide_amounts') === '1',
+  );
+  const toggleAmountsHidden = () => {
+    setAmountsHidden((prev) => {
+      localStorage.setItem('entel_hide_amounts', prev ? '0' : '1');
+      return !prev;
+    });
+  };
+
+  // Historial de líquido para el mini-gráfico (rango configurable).
+  // Solo se muestra cuando TODOS los valores llegaron bien (nunca parciales).
+  const [historyRange, setHistoryRange] = React.useState<3 | 6 | 12>(3);
+  const historyMonths = Array.from({ length: historyRange }, (_, i) => {
+    const back = historyRange - 1 - i;
     const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - back, 1);
     return { year: d.getFullYear(), month: d.getMonth() + 1, date: d };
   });
-  const payrollM2 = usePayrollQuery(historyMonths[0].year, historyMonths[0].month);
-  const payrollM1 = usePayrollQuery(historyMonths[1].year, historyMonths[1].month);
-  const historyValues = [payrollM2.data?.liquidoAPagar, payrollM1.data?.liquidoAPagar, liquidoAPagar];
+  const historyQueries = useQueries({
+    queries: historyMonths.slice(0, -1).map((m) => ({
+      queryKey: queryKeys.payroll(m.year, m.month),
+      queryFn: () => apiClient.get(`/payroll/${m.year}/${m.month}`).then((r) => r.data),
+      staleTime: 5 * 60 * 1000,
+    })),
+  });
+  const historyValues = [
+    ...historyQueries.map((q) => q.data?.liquidoAPagar),
+    liquidoAPagar,
+  ];
   const historyReady = historyValues.every((v) => typeof v === 'number');
   const historyMax = Math.max(...(historyValues as number[]), 1);
   const history = historyMonths.map((m, i) => ({
     ...m,
     value: (historyValues[i] ?? 0) as number,
     label: format(m.date, 'MMM', { locale: es }).replace('.', '').slice(0, 3),
-    isCurrent: i === 2,
+    isCurrent: i === historyMonths.length - 1,
   }));
 
   const formattedMonth = format(currentMonth, 'MMMM yyyy', { locale: es });
@@ -227,25 +250,52 @@ const Dashboard: React.FC = () => {
           </div>
           <div style={{ cursor: 'pointer' }} onClick={() => navigate('/simulator')}>
             <p className="text-sm text-secondary uppercase font-bold tracking-wider mb-2">Líquido a Pagar ({formattedMonth})</p>
-            <h1 className="text-4xl font-bold text-gradient mb-2">
-              {formatCLP(liquidoAPagar)}
-            </h1>
+            <div className="flex-center mb-2" style={{ justifyContent: 'flex-start', gap: '0.5rem' }}>
+              <h1 className="text-4xl font-bold text-gradient m-0">
+                {amountsHidden ? '••••••' : formatCLP(liquidoAPagar)}
+              </h1>
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleAmountsHidden(); }}
+                className="btn-icon"
+                aria-label={amountsHidden ? 'Mostrar montos' : 'Ocultar montos'}
+                aria-pressed={amountsHidden}
+                title={amountsHidden ? 'Mostrar montos' : 'Ocultar montos'}
+                style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', padding: '0.4rem' }}
+              >
+                {amountsHidden ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
             <p className="text-xs text-blue flex-center gap-1 mt-3">
               Toca aquí para ver detalle completo &rarr;
             </p>
           </div>
           {historyReady && (
             <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
-              <p className="text-xs text-secondary uppercase font-bold tracking-wider mb-2">Últimos 3 meses</p>
+              <div className="flex-between mb-2">
+                <p className="text-xs text-secondary uppercase font-bold tracking-wider m-0">Tendencia</p>
+                <select
+                  className="form-control text-sm"
+                  value={historyRange}
+                  onChange={(e) => setHistoryRange(Number(e.target.value) as 3 | 6 | 12)}
+                  aria-label="Rango del gráfico"
+                  style={{ padding: '0.3rem 0.5rem', width: 'auto' }}
+                >
+                  <option value={3}>Últimos 3 meses</option>
+                  <option value={6}>Últimos 6 meses</option>
+                  <option value={12}>Últimos 12 meses</option>
+                </select>
+              </div>
               <div
                 role="img"
-                aria-label={`Líquido a pagar últimos 3 meses: ${history.map((h) => `${h.label} ${formatCLP(h.value)}`).join(', ')}`}
-                style={{ display: 'flex', alignItems: 'flex-end', gap: '0.75rem', height: '104px' }}
+                aria-label={amountsHidden
+                  ? `Tendencia de líquido a pagar últimos ${historyRange} meses (montos ocultos)`
+                  : `Líquido a pagar últimos ${historyRange} meses: ${history.map((h) => `${h.label} ${formatCLP(h.value)}`).join(', ')}`}
+                style={{ display: 'flex', alignItems: 'flex-end', gap: historyRange > 6 ? '0.35rem' : '0.75rem', height: '104px' }}
               >
                 {history.map((h) => (
-                  <div key={`${h.year}-${h.month}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem', height: '100%' }} title={`${h.label} ${h.year}: ${formatCLP(h.value)}`}>
-                    <span className="text-xs font-bold" style={{ color: h.isCurrent ? 'var(--accent-blue)' : 'var(--text-secondary)' }}>
-                      {abbreviateCLP(h.value)}
+                  <div key={`${h.year}-${h.month}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem', height: '100%', minWidth: 0 }} title={amountsHidden ? `${h.label} ${h.year}` : `${h.label} ${h.year}: ${formatCLP(h.value)}`}>
+                    <span className="text-xs font-bold" style={{ color: h.isCurrent ? 'var(--accent-blue)' : 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      {amountsHidden ? '•••' : abbreviateCLP(h.value)}
                     </span>
                     <div style={{
                       width: '100%',
