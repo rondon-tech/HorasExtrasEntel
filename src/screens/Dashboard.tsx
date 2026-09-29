@@ -12,8 +12,10 @@ import QuickAddModal from '../components/QuickAddModal';
 import ViaticosModal from '../components/ViaticosModal';
 import DayListModal, { type DayGroup } from '../components/DayListModal';
 import MonthCalendar from '../components/MonthCalendar';
-import { monthPrefix } from '../utils/dates';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { monthPrefix, formatShortDate } from '../utils/dates';
 import { Spinner } from '../components/Spinner';
+import toast from 'react-hot-toast';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -23,6 +25,8 @@ const Dashboard: React.FC = () => {
   const [compOpen, setCompOpen] = React.useState(false);
   const [apoyoOpen, setApoyoOpen] = React.useState(false);
   const [contOpen, setContOpen] = React.useState(false);
+  const [pendingDeleteDate, setPendingDeleteDate] = React.useState<string | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
 
   const appContextData = useAppContext();
   const {
@@ -39,6 +43,7 @@ const Dashboard: React.FC = () => {
     expenses,
     records,
     params,
+    deleteRecord,
   } = appContextData;
 
   const prefix = monthPrefix(currentMonth);
@@ -70,8 +75,38 @@ const Dashboard: React.FC = () => {
     });
 
   // Días TAP del mes (day_type === 'TAD').
-  const tapDays = toDayGroups(groupByDate((r) => r.dayType === 'TAD'), 'Guardia');
+  const tapEntries = groupByDate((r) => r.dayType === 'TAD');
+  const tapDays = toDayGroups(tapEntries, 'Guardia');
   const tapBonusTotal = tapDays.length * (params.tadRate || 0);
+  // Días manuales = solo disposiciones fantasma (0 hrs). Los días con horas
+  // reales son orgánicos (si un día mezcla ambos, cuenta como orgánico).
+  const tapManualDates = new Set(
+    tapEntries
+      .filter(([, dayRecords]) => dayRecords.every((r) => (r.extraHours || 0) === 0))
+      .map(([date]) => date),
+  );
+  const tapOrganicDates = new Set(
+    tapEntries.map(([date]) => date).filter((d) => !tapManualDates.has(d)),
+  );
+
+  const confirmRemoveDisposition = async () => {
+    if (!pendingDeleteDate || deleting) return;
+    setDeleting(true);
+    try {
+      const ghosts = records.filter(
+        (r) => r.date === pendingDeleteDate && r.dayType === 'TAD' && (r.extraHours || 0) === 0,
+      );
+      for (const g of ghosts) {
+        await deleteRecord(g.id);
+      }
+      toast.success('Disposición eliminada');
+      setPendingDeleteDate(null);
+    } catch {
+      toast.error('No se pudo eliminar la disposición');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Días compensatorios ganados (is_feriado).
   const compDays = toDayGroups(groupByDate((r) => r.isFeriado === true), 'Feriado');
@@ -202,6 +237,16 @@ const Dashboard: React.FC = () => {
         onClose={() => setQuickAddType(null)}
         type={quickAddType || 'TAD'}
       />
+      <ConfirmDialog
+        isOpen={pendingDeleteDate !== null}
+        title="Quitar disposición"
+        message={pendingDeleteDate ? `¿Quitar la disposición manual del ${formatShortDate(pendingDeleteDate, 'dd/MM')}? Esta acción no se puede deshacer.` : ''}
+        confirmLabel={deleting ? 'Quitando...' : 'Sí, quitar'}
+        cancelLabel="Cancelar"
+        onConfirm={confirmRemoveDisposition}
+        onCancel={() => { if (!deleting) setPendingDeleteDate(null); }}
+        danger
+      />
       <ViaticosModal
         isOpen={viaticosOpen}
         onClose={() => setViaticosOpen(false)}
@@ -215,8 +260,11 @@ const Dashboard: React.FC = () => {
           <MonthCalendar
             year={currentMonth.getFullYear()}
             month={currentMonth.getMonth()}
-            marked={new Set(tapDays.map((d) => d.date))}
-            summary={`${tapDays.length} día${tapDays.length === 1 ? '' : 's'} TAP este mes`}
+            marked={tapOrganicDates}
+            softMarked={tapManualDates}
+            summary={`${tapOrganicDates.size} día${tapOrganicDates.size === 1 ? '' : 's'} con tareas registradas`}
+            summarySoft={`${tapManualDates.size} por disposición manual (clic para quitar)`}
+            onDayClick={(iso) => setPendingDeleteDate(iso)}
           />
         }
         days={tapDays}
