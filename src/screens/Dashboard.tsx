@@ -4,9 +4,9 @@ import { useAppContext } from '../context/AppContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Download, Share2 } from 'lucide-react';
-import { formatCLP } from '../utils/format';
+import { formatCLP, abbreviateCLP } from '../utils/format';
 import { usePayrollPDF } from '../hooks/usePayrollPDF';
-import { useProfileQuery } from '../hooks/useApi';
+import { useProfileQuery, usePayrollQuery } from '../hooks/useApi';
 import BentoCard from '../components/BentoCard';
 import QuickAddModal from '../components/QuickAddModal';
 import ViaticosModal from '../components/ViaticosModal';
@@ -154,6 +154,24 @@ const Dashboard: React.FC = () => {
   const { download: downloadPDF, share: sharePDF } = usePayrollPDF(appContextData, currentMonth);
   const { data: profile } = useProfileQuery();
 
+  // Historial de líquido para el mini-gráfico (mes actual + 2 anteriores).
+  // Solo se muestra cuando los 3 valores llegaron bien (nunca parciales).
+  const historyMonths = [2, 1, 0].map((back) => {
+    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - back, 1);
+    return { year: d.getFullYear(), month: d.getMonth() + 1, date: d };
+  });
+  const payrollM2 = usePayrollQuery(historyMonths[0].year, historyMonths[0].month);
+  const payrollM1 = usePayrollQuery(historyMonths[1].year, historyMonths[1].month);
+  const historyValues = [payrollM2.data?.liquidoAPagar, payrollM1.data?.liquidoAPagar, liquidoAPagar];
+  const historyReady = historyValues.every((v) => typeof v === 'number');
+  const historyMax = Math.max(...(historyValues as number[]), 1);
+  const history = historyMonths.map((m, i) => ({
+    ...m,
+    value: (historyValues[i] ?? 0) as number,
+    label: format(m.date, 'MMM', { locale: es }).replace('.', '').slice(0, 3),
+    isCurrent: i === 2,
+  }));
+
   const formattedMonth = format(currentMonth, 'MMMM yyyy', { locale: es });
 
   const greeting = profile?.firstName && profile.firstName !== 'Usuario Temporal'
@@ -216,6 +234,33 @@ const Dashboard: React.FC = () => {
               Toca aquí para ver detalle completo &rarr;
             </p>
           </div>
+          {historyReady && (
+            <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+              <p className="text-xs text-secondary uppercase font-bold tracking-wider mb-2">Últimos 3 meses</p>
+              <div
+                role="img"
+                aria-label={`Líquido a pagar últimos 3 meses: ${history.map((h) => `${h.label} ${formatCLP(h.value)}`).join(', ')}`}
+                style={{ display: 'flex', alignItems: 'flex-end', gap: '0.75rem', height: '104px' }}
+              >
+                {history.map((h) => (
+                  <div key={`${h.year}-${h.month}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem', height: '100%' }} title={`${h.label} ${h.year}: ${formatCLP(h.value)}`}>
+                    <span className="text-xs font-bold" style={{ color: h.isCurrent ? 'var(--accent-blue)' : 'var(--text-secondary)' }}>
+                      {abbreviateCLP(h.value)}
+                    </span>
+                    <div style={{
+                      width: '100%',
+                      maxWidth: '56px',
+                      height: `${Math.max(8, (h.value / historyMax) * 100)}%`,
+                      maxHeight: '56px',
+                      background: h.isCurrent ? 'var(--accent-blue)' : 'rgba(148,163,184,0.35)',
+                      borderRadius: '6px',
+                    }} />
+                    <span className="text-xs text-muted" style={{ textTransform: 'capitalize' }}>{h.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </BentoCard>
 
         <BentoCard title="Horas Extras" className="bento-col-2 bento-row-1">
