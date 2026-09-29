@@ -240,17 +240,19 @@ const Dashboard: React.FC = () => {
 
       <div className="bento-grid">
         <BentoCard className="bento-col-2 bento-row-2 bento-card-hero">
-          <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.5rem' }}>
-            <button onClick={(e) => { e.stopPropagation(); sharePDF(); }} className="btn-icon" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--accent-blue)', padding: '0.4rem' }} title="Compartir Liquidación">
-              <Share2 size={16} />
-            </button>
-            <button onClick={(e) => { e.stopPropagation(); downloadPDF(); }} className="btn-icon" style={{ background: 'var(--accent-blue)', border: 'none', color: 'white', padding: '0.4rem' }} title="Descargar PDF">
-              <Download size={16} />
-            </button>
-          </div>
           <div style={{ cursor: 'pointer' }} onClick={() => navigate('/simulator')}>
-            <p className="text-sm text-secondary uppercase font-bold tracking-wider mb-2">Líquido a Pagar ({formattedMonth})</p>
-            <div className="flex-center mb-2" style={{ justifyContent: 'flex-start', gap: '0.5rem' }}>
+            <div className="flex-between mb-2" style={{ gap: '0.5rem', alignItems: 'flex-start' }}>
+              <p className="text-sm text-secondary uppercase font-bold tracking-wider m-0" style={{ flex: 1, minWidth: 0 }}>Líquido a Pagar ({formattedMonth})</p>
+              <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                <button onClick={(e) => { e.stopPropagation(); sharePDF(); }} className="btn-icon" aria-label="Compartir liquidación" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--accent-blue)', padding: '0.4rem' }} title="Compartir Liquidación">
+                  <Share2 size={16} />
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); downloadPDF(); }} className="btn-icon" aria-label="Descargar liquidación en PDF" style={{ background: 'var(--accent-blue)', border: 'none', color: 'white', padding: '0.4rem' }} title="Descargar PDF">
+                  <Download size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-center mb-2" style={{ justifyContent: 'flex-start', gap: '0.5rem', flexWrap: 'wrap' }}>
               <h1 className="text-4xl font-bold text-gradient m-0">
                 {amountsHidden ? '••••••' : formatCLP(liquidoAPagar)}
               </h1>
