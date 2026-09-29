@@ -14,10 +14,11 @@ interface OverviewModalProps {
 
 type DayStatus = 'tap' | 'vac' | 'comp' | 'normal' | 'off';
 
-const STATUS_STYLE: Record<Exclude<DayStatus, 'normal' | 'off'>, { accent: string; soft: string; label: string }> = {
+const STATUS_STYLE: Record<Exclude<DayStatus, 'off'>, { accent: string; soft: string; label: string }> = {
   tap: { accent: '#34d399', soft: 'rgba(52,211,153,0.18)', label: 'TAP' },
   vac: { accent: '#60a5fa', soft: 'rgba(96,165,250,0.18)', label: 'Vacaciones' },
   comp: { accent: '#fb923c', soft: 'rgba(251,146,60,0.18)', label: 'Compensatorio' },
+  normal: { accent: '#94a3b8', soft: 'rgba(148,163,184,0.18)', label: 'Jornada normal' },
 };
 
 /**
@@ -54,11 +55,17 @@ const OverviewModal: React.FC<OverviewModalProps> = ({ isOpen, onClose }) => {
 
   const statusOf = (iso: string): DayStatus => {
     const dayRecords = byDate.get(iso) ?? [];
-    if (dayRecords.length === 0) return 'off';
     if (dayRecords.some((r) => r.dayType === 'TAD')) return 'tap';
     if (dayRecords.some((r) => (r.extraHours || 0) === 0 && r.tarea === TAREA_VACACIONES)) return 'vac';
     if (dayRecords.some((r) => (r.extraHours || 0) === 0 && r.tarea === TAREA_COMPENSATORIO)) return 'comp';
-    return 'normal';
+    // Jornada normal: lunes a viernes sin marca especial (se trabaja igual
+    // aunque no haya registro), o cualquier día con registros. El fin de
+    // semana sin registros es día sin jornada.
+    const [y, m, d] = iso.split('-').map(Number);
+    const dow = new Date(y, m - 1, d).getDay();
+    const isWeekday = dow >= 1 && dow <= 5;
+    if (dayRecords.length > 0 || isWeekday) return 'normal';
+    return 'off';
   };
 
   const today = new Date();
@@ -72,21 +79,6 @@ const OverviewModal: React.FC<OverviewModalProps> = ({ isOpen, onClose }) => {
   const renderDay = (day: number, iso: string) => {
     const status = statusOf(iso);
     const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
-    if (status === 'normal') {
-      return (
-        <span
-          key={day}
-          title={`${day} — jornada normal`}
-          style={{
-            aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.75rem', borderRadius: '0.5rem', color: 'var(--text-muted)',
-            outline: isToday ? '1px dashed var(--text-muted)' : 'none', outlineOffset: '-3px',
-          }}
-        >
-          {day}
-        </span>
-      );
-    }
     if (status === 'off') {
       return (
         <span
@@ -122,7 +114,7 @@ const OverviewModal: React.FC<OverviewModalProps> = ({ isOpen, onClose }) => {
   // counts se llena durante el render del grid; se lee después.
   const legend = (
     <>
-      {(['tap', 'vac', 'comp'] as const).map((s) => (
+      {(['tap', 'vac', 'comp', 'normal'] as const).map((s) => (
         <p key={s} className="text-xs text-secondary m-0" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <span style={{ width: 10, height: 10, borderRadius: 3, background: STATUS_STYLE[s].soft, border: `1px solid ${STATUS_STYLE[s].accent}`, display: 'inline-block', flexShrink: 0 }} />
           {STATUS_STYLE[s].label}
@@ -130,9 +122,8 @@ const OverviewModal: React.FC<OverviewModalProps> = ({ isOpen, onClose }) => {
       ))}
       <p className="text-xs text-secondary m-0" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
         <span style={{ width: 10, height: 10, borderRadius: 3, display: 'inline-block', flexShrink: 0, color: 'var(--text-muted)', opacity: 0.5, border: '1px solid var(--text-muted)', textAlign: 'center', fontSize: '0.55rem', lineHeight: '8px' }}>·</span>
-        Sin jornada
+        Sin jornada (fin de semana libre)
       </p>
-      <p className="text-xs text-muted m-0">Sin marca = jornada normal</p>
     </>
   );
 
@@ -150,7 +141,7 @@ const OverviewModal: React.FC<OverviewModalProps> = ({ isOpen, onClose }) => {
         className="glass-card"
         role="dialog"
         aria-modal="true"
-        aria-label={`Resumen del mes de ${monthLabel}: ${counts.tap} días TAP, ${counts.vac} de vacaciones, ${counts.comp} compensatorios, ${counts.off} sin jornada`}
+        aria-label={`Resumen del mes de ${monthLabel}: ${counts.tap} días TAP, ${counts.vac} de vacaciones, ${counts.comp} compensatorios, ${counts.normal} de jornada normal, ${counts.off} sin jornada`}
         style={{ width: '100%', maxWidth: '440px', padding: '1.5rem' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -181,7 +172,7 @@ const OverviewModal: React.FC<OverviewModalProps> = ({ isOpen, onClose }) => {
 
         <div className="flex-between" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
           <span className="text-sm text-secondary">
-            {counts.tap} TAP · {counts.vac} vac · {counts.comp} comp
+            {counts.tap} TAP · {counts.vac} vac · {counts.comp} comp · {counts.normal} normal
           </span>
           <span className="text-sm text-muted">{counts.off} sin jornada</span>
         </div>
