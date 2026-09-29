@@ -12,6 +12,8 @@ import QuickAddModal from '../components/QuickAddModal';
 import ViaticosModal from '../components/ViaticosModal';
 import DayListModal, { type DayGroup } from '../components/DayListModal';
 import MonthCalendar from '../components/MonthCalendar';
+import TimeOffModal from '../components/TimeOffModal';
+import { TAREA_VACACIONES, TAREA_COMPENSATORIO } from '../constants/tasks';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { monthPrefix, formatShortDate } from '../utils/dates';
 import { Spinner } from '../components/Spinner';
@@ -27,6 +29,7 @@ const Dashboard: React.FC = () => {
   const [contOpen, setContOpen] = React.useState(false);
   const [pendingDelete, setPendingDelete] = React.useState<{ date: string; kind: 'TAD' | 'Contingencia' } | null>(null);
   const [deleting, setDeleting] = React.useState(false);
+  const [timeOffOpen, setTimeOffOpen] = React.useState(false);
 
   const appContextData = useAppContext();
   const {
@@ -49,6 +52,15 @@ const Dashboard: React.FC = () => {
   const prefix = monthPrefix(currentMonth);
   const monthExpenses = expenses.filter((e) => e.date.startsWith(prefix));
   const viaticosTotal = monthExpenses.length * (params.viaticoRate || 0);
+
+  // Días libres del mes (fantasmas de 0 hrs con tarea Vacaciones/Compensatorio).
+  const monthTimeOff = records.filter(
+    (r) => r.date.startsWith(prefix)
+      && (r.extraHours || 0) === 0
+      && (r.tarea === TAREA_VACACIONES || r.tarea === TAREA_COMPENSATORIO),
+  );
+  const vacCount = monthTimeOff.filter((r) => r.tarea === TAREA_VACACIONES).length;
+  const compTakenCount = monthTimeOff.length - vacCount;
 
   // Agrupa registros del mes por fecha (igual que el servidor: fechas únicas).
   const groupByDate = (predicate: (r: (typeof records)[number]) => boolean) => {
@@ -231,6 +243,13 @@ const Dashboard: React.FC = () => {
           </p>
         </BentoCard>
 
+        <BentoCard title="Días Libres" className="bento-col-2 bento-row-1 bento-card-clickable" onClick={() => setTimeOffOpen(true)} ariaLabel="Ver y marcar días libres del mes">
+          <p className="stat-value text-blue">{monthTimeOff.length}</p>
+          <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>
+            {vacCount} vac · {compTakenCount} comp &rarr;
+          </p>
+        </BentoCard>
+
         <BentoCard title="Acciones Rápidas" className="bento-col-4 bento-row-1">
           <div className="grid-2">
             <button className="btn btn-primary" onClick={() => navigate('/record')}>
@@ -264,6 +283,10 @@ const Dashboard: React.FC = () => {
       <ViaticosModal
         isOpen={viaticosOpen}
         onClose={() => setViaticosOpen(false)}
+      />
+      <TimeOffModal
+        isOpen={timeOffOpen}
+        onClose={() => setTimeOffOpen(false)}
       />
       <DayListModal
         isOpen={tapOpen}

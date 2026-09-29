@@ -31,5 +31,9 @@ export type DayTypeLabel = typeof DAY_TYPES[number];
 /** Sitios frecuentes: solo sugerencias, el usuario puede escribir cualquier nemónico. */
 export const SITIOS_SUGERIDOS = ['SA575', 'FN699', 'SA881'] as const;
 
+/** Marcadores de días libres (registros fantasma de 0 hrs, no afectan liquidación). */
+export const TAREA_VACACIONES = 'Vacaciones';
+export const TAREA_COMPENSATORIO = 'Día compensatorio';
+
 /** Longitud máxima del nemónico (columna expenses.nemonico VARCHAR(50)). */
 export const NEMONICO_MAX_LENGTH = 50;
