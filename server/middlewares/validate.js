@@ -34,15 +34,17 @@ export const validate = (schema) => (req, res, next) => {
   });
 
   if (!result.success) {
+    // Zod v4 expone los problemas en `error.issues` (no `error.errors`).
+    const issues = (result.error.issues ?? []).map((e) => ({ path: e.path, message: e.message }));
     logger.warn('Validation failed:', {
       path: req.path,
       method: req.method,
-      errors: result.error.errors.map(e => ({ path: e.path, message: e.message })),
+      errors: issues,
     });
-    
+
     return res.status(400).json({
       error: 'Validation Error',
-      details: result.error.errors.map(e => ({ path: e.path, message: e.message })),
+      details: issues,
     });
   }
 

@@ -91,4 +91,44 @@ describe('API routes (DB down)', () => {
     const res = await request(app).get('/api/debug/db-check');
     expect(res.status).toBe(401);
   });
+
+  it('POST /api/records ghost (00:00/00:00, 0 hrs) passes validation (DB error, not 400)', async () => {
+    const res = await request(app)
+      .post('/api/records')
+      .set('Authorization', `Bearer ${userToken()}`)
+      .send({
+        date: '2026-09-23',
+        dayType: 'TAD',
+        isFeriado: false,
+        isContingencia: false,
+        startTime: '00:00',
+        endTime: '00:00',
+        sitio: '-',
+        numeroTarea: '-',
+        tarea: 'Disposición TAD',
+        extraHours: 0,
+      });
+    // DB mock rejects → 500 proves it got PAST validation (was 400 before).
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Error interno del servidor');
+  });
+
+  it('POST /api/records equal times with hours > 0 returns 400 with details', async () => {
+    const res = await request(app)
+      .post('/api/records')
+      .set('Authorization', `Bearer ${userToken()}`)
+      .send({
+        date: '2026-09-23',
+        dayType: 'Normal',
+        startTime: '08:00',
+        endTime: '08:00',
+        sitio: 'SA575',
+        tarea: 'Mantenimiento Correctivo RAN',
+        extraHours: 2,
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Validation Error');
+    expect(Array.isArray(res.body.details)).toBe(true);
+    expect(res.body.details.length).toBeGreaterThan(0);
+  });
 });

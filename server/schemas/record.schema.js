@@ -13,7 +13,9 @@ export const recordSchema = z.object({
     tarea: z.string().min(1, 'Tarea is required'),
     extraHours: z.number().min(0, 'Extra hours must be non-negative').max(12, 'No se pueden declarar más de 12 horas extras en un día (límite legal)'),
   })
-  .refine((data) => data.startTime !== data.endTime, {
+  // Los registros de disposición/guardia (0 horas) usan 00:00/00:00 y no
+  // necesitan horarios distintos; el resto sí (evita registros vacíos).
+  .refine((data) => data.extraHours === 0 || data.startTime !== data.endTime, {
     message: 'La hora de inicio y fin no pueden ser iguales',
     path: ['endTime'],
   })
