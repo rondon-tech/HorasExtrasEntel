@@ -25,7 +25,7 @@ const Dashboard: React.FC = () => {
   const [compOpen, setCompOpen] = React.useState(false);
   const [apoyoOpen, setApoyoOpen] = React.useState(false);
   const [contOpen, setContOpen] = React.useState(false);
-  const [pendingDeleteDate, setPendingDeleteDate] = React.useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = React.useState<{ date: string; kind: 'TAD' | 'Contingencia' } | null>(null);
   const [deleting, setDeleting] = React.useState(false);
 
   const appContextData = useAppContext();
@@ -90,17 +90,19 @@ const Dashboard: React.FC = () => {
   );
 
   const confirmRemoveDisposition = async () => {
-    if (!pendingDeleteDate || deleting) return;
+    if (!pendingDelete || deleting) return;
     setDeleting(true);
     try {
       const ghosts = records.filter(
-        (r) => r.date === pendingDeleteDate && r.dayType === 'TAD' && (r.extraHours || 0) === 0,
+        (r) => r.date === pendingDelete.date
+          && (r.extraHours || 0) === 0
+          && (pendingDelete.kind === 'TAD' ? r.dayType === 'TAD' : r.isContingencia === true),
       );
       for (const g of ghosts) {
         await deleteRecord(g.id);
       }
       toast.success('Disposición eliminada');
-      setPendingDeleteDate(null);
+      setPendingDelete(null);
     } catch {
       toast.error('No se pudo eliminar la disposición');
     } finally {
@@ -116,8 +118,20 @@ const Dashboard: React.FC = () => {
   const apoyoBonusTotal = apoyoDays.length * (params.tadRate || 0);
 
   // Días Contingencia (is_contingencia).
-  const contDays = toDayGroups(groupByDate((r) => r.isContingencia === true), 'Guardia');
+  const contEntries = groupByDate((r) => r.isContingencia === true);
+  const contDays = toDayGroups(contEntries, 'Guardia');
   const contBonusTotal = contDays.length * (params.contingencyRate || 0);
+  // Manual = todas las marcas de contingencia del día son fantasmas (0 hrs).
+  const contManualDates = new Set(
+    contEntries
+      .filter(([, dayRecords]) => dayRecords
+        .filter((r) => r.isContingencia === true)
+        .every((r) => (r.extraHours || 0) === 0))
+      .map(([date]) => date),
+  );
+  const contOrganicDates = new Set(
+    contEntries.map(([date]) => date).filter((d) => !contManualDates.has(d)),
+  );
   const { download: downloadPDF, share: sharePDF } = usePayrollPDF(appContextData, currentMonth);
   const { data: profile } = useProfileQuery();
 
@@ -238,13 +252,13 @@ const Dashboard: React.FC = () => {
         type={quickAddType || 'TAD'}
       />
       <ConfirmDialog
-        isOpen={pendingDeleteDate !== null}
+        isOpen={pendingDelete !== null}
         title="Quitar disposición"
-        message={pendingDeleteDate ? `¿Quitar la disposición manual del ${formatShortDate(pendingDeleteDate, 'dd/MM')}? Esta acción no se puede deshacer.` : ''}
+        message={pendingDelete ? `¿Quitar la disposición ${pendingDelete.kind === 'TAD' ? 'manual' : 'de contingencia'} del ${formatShortDate(pendingDelete.date, 'dd/MM')}? Esta acción no se puede deshacer.` : ''}
         confirmLabel={deleting ? 'Quitando...' : 'Sí, quitar'}
         cancelLabel="Cancelar"
         onConfirm={confirmRemoveDisposition}
-        onCancel={() => { if (!deleting) setPendingDeleteDate(null); }}
+        onCancel={() => { if (!deleting) setPendingDelete(null); }}
         danger
       />
       <ViaticosModal
@@ -264,7 +278,7 @@ const Dashboard: React.FC = () => {
             softMarked={tapManualDates}
             summary={`${tapOrganicDates.size} día${tapOrganicDates.size === 1 ? '' : 's'} con tareas registradas`}
             summarySoft={`${tapManualDates.size} por disposición manual (clic para quitar)`}
-            onDayClick={(iso) => setPendingDeleteDate(iso)}
+            onDayClick={(iso) => setPendingDelete({ date: iso, kind: 'TAD' })}
           />
         }
         days={tapDays}
@@ -285,6 +299,16 @@ const Dashboard: React.FC = () => {
         onClose={() => setCompOpen(false)}
         title="Días Compensatorios"
         monthLabel={formattedMonth}
+        calendar={
+          <MonthCalendar
+            year={currentMonth.getFullYear()}
+            month={currentMonth.getMonth()}
+            marked={new Set(compDays.map((d) => d.date))}
+            accent="#60a5fa"
+            accentSoft="rgba(96,165,250,0.18)"
+            summary={`${compDays.length} día${compDays.length === 1 ? '' : 's'} ganado${compDays.length === 1 ? '' : 's'}`}
+          />
+        }
         days={compDays}
         footer={
           <div className="flex-between">
@@ -301,6 +325,14 @@ const Dashboard: React.FC = () => {
         onClose={() => setApoyoOpen(false)}
         title="Días Apoyo TAP"
         monthLabel={formattedMonth}
+        calendar={
+          <MonthCalendar
+            year={currentMonth.getFullYear()}
+            month={currentMonth.getMonth()}
+            marked={new Set(apoyoDays.map((d) => d.date))}
+            summary={`${apoyoDays.length} día${apoyoDays.length === 1 ? '' : 's'} de apoyo`}
+          />
+        }
         days={apoyoDays}
         footer={
           <div className="flex-between">
@@ -317,6 +349,19 @@ const Dashboard: React.FC = () => {
         onClose={() => setContOpen(false)}
         title="Días Contingencia"
         monthLabel={formattedMonth}
+        calendar={
+          <MonthCalendar
+            year={currentMonth.getFullYear()}
+            month={currentMonth.getMonth()}
+            marked={contOrganicDates}
+            softMarked={contManualDates}
+            accent="#c084fc"
+            accentSoft="rgba(192,132,252,0.18)"
+            summary={`${contOrganicDates.size} día${contOrganicDates.size === 1 ? '' : 's'} con tareas registradas`}
+            summarySoft={`${contManualDates.size} por disposición manual (clic para quitar)`}
+            onDayClick={(iso) => setPendingDelete({ date: iso, kind: 'Contingencia' })}
+          />
+        }
         days={contDays}
         footer={
           <div className="flex-between">

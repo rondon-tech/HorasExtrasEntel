@@ -6,6 +6,7 @@ import { es } from 'date-fns/locale';
 import { useAppContext } from '../context/AppContext';
 import { formatCLP } from '../utils/format';
 import { formatShortDate } from '../utils/dates';
+import MonthCalendar from './MonthCalendar';
 
 interface ViaticosModalProps {
   isOpen: boolean;
@@ -67,6 +68,12 @@ const ViaticosModal: React.FC<ViaticosModalProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
 
+        <MonthCalendar
+          year={currentMonth.getFullYear()}
+          month={currentMonth.getMonth()}
+          marked={new Set(monthExpenses.map((e) => e.date))}
+          summary={`${monthExpenses.length} viático${monthExpenses.length === 1 ? '' : 's'} este mes`}
+        />
         {monthExpenses.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '1rem 0' }}>
             <p className="text-sm text-secondary mb-4">Sin viáticos registrados este mes.</p>
