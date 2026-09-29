@@ -13,6 +13,7 @@ import ViaticosModal from '../components/ViaticosModal';
 import DayListModal, { type DayGroup } from '../components/DayListModal';
 import MonthCalendar from '../components/MonthCalendar';
 import TimeOffModal from '../components/TimeOffModal';
+import OverviewModal from '../components/OverviewModal';
 import { TAREA_VACACIONES, TAREA_COMPENSATORIO } from '../constants/tasks';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { monthPrefix, formatShortDate } from '../utils/dates';
@@ -30,6 +31,7 @@ const Dashboard: React.FC = () => {
   const [pendingDelete, setPendingDelete] = React.useState<{ date: string; kind: 'TAD' | 'Contingencia' } | null>(null);
   const [deleting, setDeleting] = React.useState(false);
   const [timeOffOpen, setTimeOffOpen] = React.useState(false);
+  const [overviewOpen, setOverviewOpen] = React.useState(false);
 
   const appContextData = useAppContext();
   const {
@@ -61,6 +63,11 @@ const Dashboard: React.FC = () => {
   );
   const vacCount = monthTimeOff.filter((r) => r.tarea === TAREA_VACACIONES).length;
   const compTakenCount = monthTimeOff.length - vacCount;
+
+  // Días con actividad (cualquier registro) del mes.
+  const activeDaysThisMonth = new Set(
+    records.filter((r) => r.date.startsWith(prefix)).map((r) => r.date),
+  ).size;
 
   // Agrupa registros del mes por fecha (igual que el servidor: fechas únicas).
   const groupByDate = (predicate: (r: (typeof records)[number]) => boolean) => {
@@ -250,6 +257,13 @@ const Dashboard: React.FC = () => {
           </p>
         </BentoCard>
 
+        <BentoCard title="Resumen del Mes" className="bento-col-2 bento-row-1 bento-card-clickable" onClick={() => setOverviewOpen(true)} ariaLabel="Ver calendario combinado del mes">
+          <p className="stat-value text-green">{activeDaysThisMonth}</p>
+          <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>
+            días con actividad &rarr;
+          </p>
+        </BentoCard>
+
         <BentoCard title="Acciones Rápidas" className="bento-col-4 bento-row-1">
           <div className="grid-2">
             <button className="btn btn-primary" onClick={() => navigate('/record')}>
@@ -287,6 +301,10 @@ const Dashboard: React.FC = () => {
       <TimeOffModal
         isOpen={timeOffOpen}
         onClose={() => setTimeOffOpen(false)}
+      />
+      <OverviewModal
+        isOpen={overviewOpen}
+        onClose={() => setOverviewOpen(false)}
       />
       <DayListModal
         isOpen={tapOpen}

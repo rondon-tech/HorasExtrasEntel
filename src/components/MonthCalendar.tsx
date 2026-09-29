@@ -1,6 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import MonthGrid from './MonthGrid';
 
 interface MonthCalendarProps {
   year: number;
@@ -20,8 +21,6 @@ interface MonthCalendarProps {
   onDayClick?: (isoDate: string) => void;
 }
 
-const WEEKDAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-
 /**
  * Mini-calendario mensual: resalta visualmente las fechas marcadas.
  * Semana de lunes a domingo. Compacto para modales.
@@ -37,23 +36,16 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
   summarySoft,
   onDayClick,
 }) => {
-  const firstDowMondayFirst = (new Date(year, month, 1).getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
   const isToday = (day: number) =>
     today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
 
-  const cells: React.ReactNode[] = [];
-  for (let i = 0; i < firstDowMondayFirst; i++) {
-    cells.push(<span key={`blank-${i}`} />);
-  }
-  for (let day = 1; day <= daysInMonth; day++) {
-    const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const renderDay = (day: number, iso: string) => {
     const isMarked = marked.has(iso);
     const isSoft = !isMarked && (softMarked?.has(iso) ?? false);
     const isClickable = isSoft && typeof onDayClick === 'function';
     const todayMark = isToday(day);
-    // Tono fuerte (orgánico): igual que antes. Tono suave (manual): misma gama
+    // Tono fuerte (orgánico): igual que siempre. Tono suave (manual): misma gama
     // pero más claro, con borde punteado para diferenciarlo a simple vista.
     const softText = `color-mix(in srgb, ${accent} 72%, white)`;
     const softBorder = `color-mix(in srgb, ${accent} 55%, transparent)`;
@@ -78,18 +70,16 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
       : isSoft
         ? `${day} — ingresado manualmente (clic para quitar)`
         : `${day}`;
-    cells.push(
-      isClickable ? (
-        <button key={day} type="button" title={title} aria-label={title} onClick={() => onDayClick(iso)} style={commonStyle}>
-          {day}
-        </button>
-      ) : (
-        <span key={day} title={title} style={commonStyle}>
-          {day}
-        </span>
-      ),
+    return isClickable ? (
+      <button type="button" title={title} aria-label={title} onClick={() => onDayClick(iso)} style={commonStyle}>
+        {day}
+      </button>
+    ) : (
+      <span title={title} style={commonStyle}>
+        {day}
+      </span>
     );
-  }
+  };
 
   const monthName = format(new Date(year, month, 1), 'MMMM yyyy', { locale: es });
   const inMonth = (d: string) => d.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`);
@@ -114,14 +104,7 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
         marginBottom: '1rem',
       }}
     >
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center' }}>
-        {WEEKDAYS.map((w) => (
-          <span key={w} style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', padding: '2px 0' }}>
-            {w}
-          </span>
-        ))}
-        {cells}
-      </div>
+      <MonthGrid year={year} month={month} renderDay={renderDay} />
       {(summary || summarySoft) && (
         <div className="mt-2" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           {summary && (

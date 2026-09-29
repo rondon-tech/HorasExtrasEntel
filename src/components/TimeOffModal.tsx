@@ -7,6 +7,7 @@ import { useAppContext } from '../context/AppContext';
 import { TAREA_VACACIONES, TAREA_COMPENSATORIO } from '../constants/tasks';
 import { formatShortDate } from '../utils/dates';
 import { ConfirmDialog } from './ConfirmDialog';
+import MonthGrid from './MonthGrid';
 
 type TimeOffType = typeof TAREA_VACACIONES | typeof TAREA_COMPENSATORIO;
 
@@ -14,8 +15,6 @@ interface TimeOffModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-const WEEKDAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 const TYPE_STYLE: Record<TimeOffType, { accent: string; soft: string; label: string }> = {
   [TAREA_VACACIONES]: { accent: '#60a5fa', soft: 'rgba(96,165,250,0.18)', label: 'Vacaciones' },
@@ -58,7 +57,6 @@ const TimeOffModal: React.FC<TimeOffModalProps> = ({ isOpen, onClose }) => {
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
-  const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
   const monthLabel = format(currentMonth, 'MMMM yyyy', { locale: es });
 
   const savedOf = (iso: string): TimeOffType | null => {
@@ -131,24 +129,16 @@ const TimeOffModal: React.FC<TimeOffModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const firstDowMondayFirst = (new Date(year, month, 1).getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
 
-  const cells: React.ReactNode[] = [];
-  for (let i = 0; i < firstDowMondayFirst; i++) {
-    cells.push(<span key={`blank-${i}`} />);
-  }
-  for (let day = 1; day <= daysInMonth; day++) {
-    const iso = `${prefix}-${String(day).padStart(2, '0')}`;
+  const renderDay = (day: number, iso: string) => {
     const saved = savedOf(iso);
     const pend = pending.get(iso) ?? null;
     const shown: TimeOffType | null = pend ?? saved;
     const styleFor = shown ? TYPE_STYLE[shown] : null;
     const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
-    cells.push(
+    return (
       <button
-        key={day}
         type="button"
         onClick={() => toggleDay(iso)}
         title={saved ? `${day} — ${saved} (clic para quitar)` : pend ? `${day} — ${pend} (clic para desmarcar)` : `${day} — marcar como ${activeType}`}
@@ -172,9 +162,9 @@ const TimeOffModal: React.FC<TimeOffModalProps> = ({ isOpen, onClose }) => {
         }}
       >
         {day}
-      </button>,
+      </button>
     );
-  }
+  };
 
   const pendVac = [...pending.values()].filter((t) => t === TAREA_VACACIONES).length;
   const pendComp = pending.size - pendVac;
@@ -243,14 +233,7 @@ const TimeOffModal: React.FC<TimeOffModalProps> = ({ isOpen, onClose }) => {
             marginBottom: '0.75rem',
           }}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center' }}>
-            {WEEKDAYS.map((w) => (
-              <span key={w} style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', padding: '2px 0' }}>
-                {w}
-              </span>
-            ))}
-            {cells}
-          </div>
+          <MonthGrid year={year} month={month} renderDay={renderDay} />
           <div className="mt-2" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             {([TAREA_VACACIONES, TAREA_COMPENSATORIO] as const).map((t) => (
               <p key={t} className="text-xs text-secondary m-0" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
