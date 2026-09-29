@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import { useAppContext, type DayType } from '../context/AppContext';
 import { format } from 'date-fns';
 import { TAREAS_OPTIONS, TAREA_PLACEHOLDER } from '../constants/tasks';
-import { Mic, Square } from 'lucide-react';
 import { Spinner } from '../components/Spinner';
 
 const dayTypes: DayType[] = ['Normal', 'TAD', 'TAD Apoyo'];
@@ -26,19 +25,6 @@ const DailyRecord: React.FC = () => {
   const [computedHours, setComputedHours] = useState(0);
   const [timeError, setTimeError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const [voiceProcessing, setVoiceProcessing] = useState(false);
-  const mediaRef = React.useRef<MediaRecorder | null>(null);
-  const chunksRef = React.useRef<Blob[]>([]);
-
-  useEffect(() => {
-    return () => {
-      if (mediaRef.current && mediaRef.current.state !== 'inactive') {
-        mediaRef.current.stop();
-      }
-      mediaRef.current?.stream.getTracks().forEach((t) => t.stop());
-    };
-  }, []);
 
   useEffect(() => {
     if (editingId) {
@@ -80,70 +66,6 @@ const DailyRecord: React.FC = () => {
     }
   }, [startTime, endTime]);
   
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      chunksRef.current = [];
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      recorder.onstop = handleVoiceNote;
-      recorder.start();
-      mediaRef.current = recorder;
-      setRecording(true);
-    } catch {
-      toast.error('No se pudo acceder al microfono.');
-    }
-  };
-
-  const stopRecording = () => {
-    mediaRef.current?.stop();
-    mediaRef.current?.stream.getTracks().forEach((t) => t.stop());
-    setRecording(false);
-  };
-
-  const handleVoiceNote = async () => {
-    const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-    if (blob.size < 1000) { toast.error('Grabacion demasiado corta.'); return; }
-    setVoiceProcessing(true);
-    try {
-      const b64 = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result).split(',')[1]);
-        r.onerror = () => reject(new Error('No se pudo leer el audio'));
-        r.readAsDataURL(blob);
-      });
-      const token = localStorage.getItem('auth_token');
-      const res = await fetch('/api/agent/voice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
-        body: JSON.stringify({ audioBase64: b64, mediaType: 'audio/webm' }),
-      });
-      if (!res.ok) throw new Error('El dictado por voz no esta disponible ahora.');
-      const json = await res.json();
-      const d = json.data;
-      if (d) {
-        if (d.sitio) setSitio(d.sitio);
-        if (d.numeroTarea) setNumeroTarea(d.numeroTarea);
-        if (d.startTime) setStartTime(d.startTime);
-        if (d.endTime) setEndTime(d.endTime);
-        if (d.dayType) setDayType(d.dayType);
-        if (d.isFeriado !== null && d.isFeriado !== undefined) setIsFeriado(d.isFeriado);
-        if (d.isContingencia !== null && d.isContingencia !== undefined) setIsContingencia(d.isContingencia);
-        if (d.tarea) {
-          const match = TAREAS_OPTIONS.find((t) => t.toLowerCase().includes(d.tarea!.toLowerCase()) || d.tarea!.toLowerCase().includes(t.toLowerCase()));
-          setTarea(match || d.tarea);
-        }
-        toast.success('Dictado procesado. Revisa los campos antes de guardar.', { duration: 5000 });
-      } else {
-        toast.success('Transcripcion: ' + (json.transcription || '').slice(0, 120), { duration: 6000 });
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error al procesar el dictado');
-    } finally {
-      setVoiceProcessing(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -226,30 +148,6 @@ const DailyRecord: React.FC = () => {
     <div>
       {isLoading && <Spinner />}
       <h2 className="mb-6 text-xl">{editingId ? 'Editar Registro' : 'Registro Diario de Actividad'}</h2>
-      
-
-      <div className="glass-card mb-6" style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'space-between' }}>
-        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          {voiceProcessing ? 'Procesando dictado con IA...' : recording ? 'Grabando... habla con claridad' : 'Dictado por voz (IA): "hoy estuve en Nagarove de 8 a 18, tarea fibonacci"'}
-        </p>
-        <button
-          type="button"
-          onClick={recording ? stopRecording : startRecording}
-          disabled={voiceProcessing}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.4rem',
-            padding: '0.45rem 0.85rem', borderRadius: '0.5rem', cursor: 'pointer',
-            border: '1px solid var(--border-color)',
-            background: recording ? '#ef4444' : 'var(--bg-secondary)',
-            color: recording ? 'white' : 'var(--text-primary)',
-            fontSize: '0.78rem',
-          }}
-          aria-label={recording ? 'Detener grabacion' : 'Iniciar dictado'}
-        >
-          {recording ? <Square size={14} aria-hidden="true" /> : <Mic size={14} aria-hidden="true" />}
-          {recording ? 'Detener' : 'Dictar'}
-        </button>
-      </div>
 
       <form onSubmit={handleSubmit} className="glass-card">
         <div className="grid-2">

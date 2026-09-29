@@ -7,6 +7,7 @@ import { ArrowLeft, Download, Share2 } from 'lucide-react';
 import { usePayrollPDF } from '../hooks/usePayrollPDF';
 import { formatCLP } from '../utils/format';
 import { Spinner } from '../components/Spinner';
+import PayrollTrend from '../components/PayrollTrend';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 
 const Simulator: React.FC = () => {
@@ -78,6 +79,9 @@ const Simulator: React.FC = () => {
         <h1 className="text-4xl font-bold text-gradient mb-2">
           {formatCLP(liquidoAPagar)}
         </h1>
+        <div style={{ textAlign: 'left' }}>
+          <PayrollTrend currentMonth={currentMonth} currentLiquido={liquidoAPagar} />
+        </div>
       </div>
 
       <div className="grid-2 mb-6">
