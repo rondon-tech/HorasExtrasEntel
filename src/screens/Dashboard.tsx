@@ -3,12 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Download, Share2, Eye, EyeOff } from 'lucide-react';
+import {
+  Download, Share2, Eye, EyeOff, Clock, CalendarCheck,
+  Briefcase, Umbrella, CalendarClock, ReceiptText, CalendarDays, Coins,
+} from 'lucide-react';
 import { formatCLP } from '../utils/format';
 import { usePayrollPDF } from '../hooks/usePayrollPDF';
 import { useProfileQuery } from '../hooks/useApi';
 import PayrollTrend from '../components/PayrollTrend';
 import BentoCard from '../components/BentoCard';
+import Skeleton from '../components/Skeleton';
 import QuickAddModal from '../components/QuickAddModal';
 import ViaticosModal from '../components/ViaticosModal';
 import DayListModal, { type DayGroup } from '../components/DayListModal';
@@ -18,7 +22,6 @@ import OverviewModal from '../components/OverviewModal';
 import { TAREA_VACACIONES, TAREA_COMPENSATORIO } from '../constants/tasks';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { monthPrefix, formatShortDate } from '../utils/dates';
-import { Spinner } from '../components/Spinner';
 import toast from 'react-hot-toast';
 
 const Dashboard: React.FC = () => {
@@ -188,8 +191,6 @@ const Dashboard: React.FC = () => {
 
   return (
     <div>
-      {isLoading && <Spinner />}
-      
       <p className="dashboard-greeting mb-4">{greeting}</p>
 
       <div className="flex-between mb-4">
@@ -211,8 +212,23 @@ const Dashboard: React.FC = () => {
         <div className="badge badge-green">Recalculado</div>
       </div>
 
+      {isLoading ? (
+        <div className="bento-grid" aria-label="Cargando dashboard">
+          <div className="glass-card bento-card bento-col-2 bento-row-2">
+            <Skeleton height={20} width="55%" />
+            <Skeleton height={48} width="75%" style={{ marginTop: '0.75rem' }} />
+            <Skeleton height={104} style={{ marginTop: '1rem' }} />
+          </div>
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="glass-card bento-card bento-col-1 bento-row-1">
+              <Skeleton height={16} width="70%" />
+              <Skeleton height={32} width="45%" style={{ marginTop: '0.5rem' }} />
+            </div>
+          ))}
+        </div>
+      ) : (
       <div className="bento-grid">
-        <BentoCard className="bento-col-2 bento-row-2 bento-card-hero">
+        <BentoCard className="bento-col-2 bento-row-2 bento-card-hero" index={0}>
           <div style={{ cursor: 'pointer' }} onClick={() => navigate('/simulator')}>
             <div className="flex-between mb-2" style={{ gap: '0.5rem', alignItems: 'flex-start' }}>
               <p className="text-sm text-secondary uppercase font-bold tracking-wider m-0" style={{ flex: 1, minWidth: 0 }}>Líquido a Pagar ({formattedMonth})</p>
@@ -247,53 +263,53 @@ const Dashboard: React.FC = () => {
           <PayrollTrend currentMonth={currentMonth} currentLiquido={liquidoAPagar} maskAmounts={amountsHidden} />
         </BentoCard>
 
-        <BentoCard title="Horas Extras" className="bento-col-2 bento-row-1">
+        <BentoCard title="Horas Extras" className="bento-col-2 bento-row-1" icon={Clock} iconClassName="text-orange" index={1}>
           <p className="stat-value text-orange">{totalExtraHoursThisMonth.toFixed(1)} <span className="text-sm">hrs</span></p>
           <p className="text-xs text-muted mt-1">{formatCLP(totalExtraPayThisMonth)} imponibles</p>
         </BentoCard>
 
-        <BentoCard title="Días Compens. Ganados" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setCompOpen(true)} ariaLabel="Ver detalle de días compensatorios del mes">
+        <BentoCard title="Días Compens. Ganados" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setCompOpen(true)} ariaLabel="Ver detalle de días compensatorios del mes" icon={CalendarCheck} iconClassName="text-blue" index={2}>
           <p className="stat-value text-blue">{diasCompensatoriosGanados}</p>
           <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>Toca para ver el detalle &rarr;</p>
         </BentoCard>
 
-        <BentoCard title="Días TAP Trabajados" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setTapOpen(true)} ariaLabel="Ver detalle de días TAP del mes">
+        <BentoCard title="Días TAP Trabajados" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setTapOpen(true)} ariaLabel="Ver detalle de días TAP del mes" icon={Briefcase} iconClassName="text-green" index={3}>
           <p className="stat-value text-green">{pureTadDays}</p>
           <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>Toca para ver el detalle &rarr;</p>
         </BentoCard>
 
-        <BentoCard title="Días Contingencia" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setContOpen(true)} ariaLabel="Ver detalle de días de contingencia del mes">
+        <BentoCard title="Días Contingencia" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setContOpen(true)} ariaLabel="Ver detalle de días de contingencia del mes" icon={Umbrella} iconClassName="text-purple" index={4}>
           <p className="stat-value text-purple">{contingencyDaysThisMonth}</p>
           <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>Toca para ver el detalle &rarr;</p>
         </BentoCard>
 
-        <BentoCard title="Días Apoyo TAP" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setApoyoOpen(true)} ariaLabel="Ver detalle de días de apoyo TAP del mes">
+        <BentoCard title="Días Apoyo TAP" className="bento-col-1 bento-row-1 bento-card-clickable" onClick={() => setApoyoOpen(true)} ariaLabel="Ver detalle de días de apoyo TAP del mes" icon={CalendarClock} iconClassName="text-green" index={5}>
           <p className="stat-value text-green">{apoyoTadDays}</p>
           <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>Toca para ver el detalle &rarr;</p>
         </BentoCard>
 
-        <BentoCard title="Viáticos del Mes" className="bento-col-2 bento-row-1 bento-card-clickable" onClick={() => setViaticosOpen(true)} ariaLabel="Ver detalle de viáticos del mes">
+        <BentoCard title="Viáticos del Mes" className="bento-col-2 bento-row-1 bento-card-clickable" onClick={() => setViaticosOpen(true)} ariaLabel="Ver detalle de viáticos del mes" icon={ReceiptText} iconClassName="text-green" index={6}>
           <p className="stat-value text-green">{formatCLP(viaticosTotal)}</p>
           <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>
             {monthExpenses.length} viático{monthExpenses.length === 1 ? '' : 's'} &rarr;
           </p>
         </BentoCard>
 
-        <BentoCard title="Días Libres" className="bento-col-2 bento-row-1 bento-card-clickable" onClick={() => setTimeOffOpen(true)} ariaLabel="Ver y marcar días libres del mes">
+        <BentoCard title="Días Libres" className="bento-col-2 bento-row-1 bento-card-clickable" onClick={() => setTimeOffOpen(true)} ariaLabel="Ver y marcar días libres del mes" icon={CalendarDays} iconClassName="text-blue" index={7}>
           <p className="stat-value text-blue">{monthTimeOff.length}</p>
           <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>
             {vacCount} vac · {compTakenCount} comp &rarr;
           </p>
         </BentoCard>
 
-        <BentoCard title="Resumen del Mes" className="bento-col-2 bento-row-1 bento-card-clickable" onClick={() => setOverviewOpen(true)} ariaLabel="Ver calendario combinado del mes">
+        <BentoCard title="Resumen del Mes" className="bento-col-2 bento-row-1 bento-card-clickable" onClick={() => setOverviewOpen(true)} ariaLabel="Ver calendario combinado del mes" icon={Coins} iconClassName="text-green" index={8}>
           <p className="stat-value text-green">{activeDaysThisMonth}</p>
           <p className="text-xs text-blue flex-center gap-1 mt-1" style={{ justifyContent: 'flex-start' }}>
             días con actividad &rarr;
           </p>
         </BentoCard>
 
-        <BentoCard title="Acciones Rápidas" className="bento-col-4 bento-row-1">
+        <BentoCard title="Acciones Rápidas" className="bento-col-4 bento-row-1" index={9}>
           <div className="grid-2">
             <button className="btn btn-primary" onClick={() => navigate('/record')}>
               Registrar Hora
@@ -307,6 +323,7 @@ const Dashboard: React.FC = () => {
           </button>
         </BentoCard>
       </div>
+      )}
 
       <QuickAddModal
         isOpen={quickAddType !== null}

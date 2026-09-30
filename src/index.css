@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Dark mode premium palette - Entel inspired */
-  --bg-primary: #0a0e17;
+  /* Dark mode premium palette - Entel inspired (bg alineado a Slate 950) */
+  --bg-primary: #020617;
   --bg-secondary: #141c2f;
   --bg-tertiary: #1e293b;
   
@@ -207,7 +207,7 @@ select.form-control {
   bottom: 0;
   width: 100%;
   max-width: 1200px;
-  background: rgba(10, 14, 23, 0.9);
+  background: rgba(2, 6, 23, 0.9);
   backdrop-filter: blur(10px);
   border-top: 1px solid rgba(255,255,255,0.05);
   display: flex;
@@ -928,4 +928,87 @@ select.form-control {
 .assistant-send:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* ==========================================================================
+   FASE 1 — Cimientos UI/UX (sin Tailwind: sistema propio + data-theme)
+   ========================================================================== */
+
+/* 1. Objetivos táctiles mínimos 48px (uso en campo, incluso con guantes) */
+.btn,
+.form-control,
+select.form-control,
+input.form-control,
+textarea.form-control {
+  min-height: 48px;
+}
+
+.btn-icon,
+.nav-item,
+button.btn-icon {
+  min-width: 48px;
+  min-height: 48px;
+}
+
+/* 2. Skeleton reutilizable (shimmer neutro, apto claro/oscuro) */
+.skeleton {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.12) 25%,
+    rgba(148, 163, 184, 0.3) 50%,
+    rgba(148, 163, 184, 0.12) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* 3. Respeto a movimiento reducido (accesibilidad) */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   FASE 3 — Formulario mobile-first (DailyRecord)
+   ========================================================================== */
+
+/* Apilado vertical con respiración amplia */
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Estado inválido: anillo rojo suave + transición */
+.form-control-invalid {
+  border-color: var(--accent-red) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+}
+
+.form-error {
+  color: var(--accent-red);
+  font-size: 0.75rem;
+  margin-top: 0.35rem;
+  margin-bottom: 0;
+}
+
+/* Acción principal fija en la zona del pulgar */
+.btn-sticky-bottom {
+  position: sticky;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  z-index: 20;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
 }

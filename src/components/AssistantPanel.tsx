@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { Bot, X, SendHorizonal, Square } from 'lucide-react';
+import ThinkingDots from './ThinkingDots';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
@@ -174,7 +175,11 @@ export default function AssistantPanel() {
             )}
             {messages.map((m, i) => (
               <div key={i} className={`assistant-msg ${m.role}`}>
-                {m.role === 'assistant' ? renderContent(m.content || (sending && i === messages.length - 1 ? '…' : '')) : m.content}
+                {m.role === 'assistant'
+                  ? (m.content
+                    ? renderContent(m.content)
+                    : (sending && i === messages.length - 1 ? <ThinkingDots /> : ''))
+                  : m.content}
               </div>
             ))}
           </div>

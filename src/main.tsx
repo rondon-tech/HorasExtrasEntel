@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import App from './App.tsx'
+import { MotionConfig } from 'framer-motion'
 import './index.css'
 import { AppProvider } from './context/AppContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -19,6 +20,7 @@ window.addEventListener('auth:unauthorized', () => {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
+    <MotionConfig reducedMotion="user">
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
@@ -31,5 +33,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </AuthProvider>
       </QueryClientProvider>
     </BrowserRouter>
+    </MotionConfig>
   </React.StrictMode>,
 )
