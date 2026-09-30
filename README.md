@@ -1,118 +1,131 @@
 # Horas Extras Entel
 
-Aplicación web para el registro y cálculo de horas extras, viáticos y liquidaciones de sueldo de técnicos de Entel Chile.  Calcula automáticamente haberes imponibles, descuentos legales (AFP, salud, cesantía), impuesto único de segunda categoría, y bonos por TAD/Contingencia según la legislación laboral chilena.
+Aplicación web full-stack para que técnicos de campo de **Entel Chile** registren horas extras, viáticos (bono gestión), días TAD/Contingencia y días libres, y obtengan automáticamente el cálculo de su **liquidación de sueldo** según la legislación laboral chilena (haberes imponibles, AFP/salud/cesantía, impuesto único de segunda categoría, bonos y descuentos).
+
+## Características principales
+
+### Dashboard
+- **Líquido a Pagar**: monto del mes con mini-gráfico de tendencia (rango 3/6/12 meses), botón de privacidad 👁 (oculta los montos) y descarga/compartir de la liquidación en PDF.
+- **Cartas mensuales clicables**, cada una con calendario visual y lista de detalle:
+  - Horas Extras, Días Compens. Ganados, Días TAP Trabajados, Días Contingencia, Días Apoyo TAP, Viáticos del Mes, Días Libres y **Resumen del Mes** (vista combinada: TAP, vacaciones, compensatorios, jornada normal y días sin jornada).
+- Los calendarios distinguen **días con tareas** (tono fuerte) de **disposiciones manuales** (tono claro, eliminables con confirmación).
+- Selector de mes/año; todo el dashboard reacciona al período elegido.
+
+### Registro diario y gastos
+- **Registro Diario**: fecha, condición del día (Normal/TAD/TAD Apoyo), feriado, contingencia, sitio, tarea, horarios con cálculo automático de horas (soporta turnos nocturnos) y validación anti-duplicados por N° de tarea.
+- **Módulo de Viáticos (Bono Gestión)**: nemónico con **texto libre + sugerencias**, lectura de tickets con IA (OCR extrae fecha y sugiere descripción) y valor automático por viático.
+- **Días Libres**: planificador con calendario interactivo para marcar Vacaciones o Compensatorios por día, con guardado por lote y borrado con confirmación.
+
+### Reporte / Liquidación
+- **Liquidación Detallada**: haberes, descuentos legales y varios, composición de ingresos (gráfico), balance general y tendencia del líquido, exportable a PDF.
+
+### Administración y cuentas
+- Roles `user` y `global_admin`; panel admin (usuarios, reseteo de contraseñas, anomalías, uso de IA); cambio de contraseña obligatorio al primer ingreso; perfil editable.
+
+### Agentes IA (opcionales, por cron)
+- **A1**: enriquecimiento de anomalías cada 6 h; reporte mensual de liquidaciones; *restore drill* mensual que verifica que los backups son restaurables; diagnóstico ops; asistente conversacional; OCR de tickets.
+
+### PWA y temas
+- Service Worker, manifiesto instalable y tema oscuro/claro.
 
 ## Stack
 
-| Capa         | Tecnología                    |
-| ------------ | ----------------------------- |
-| Frontend     | React 19, TypeScript, Vite 8  |
-| Backend      | Node.js, Express 5            |
-| Base de datos| PostgreSQL (Neon.tech)        |
-| Autenticación| JWT                           |
-| Estilo       | CSS custom properties (dark/light) |
-| Testing      | Vitest                        |
-| Despliegue   | Vercel (serverless)           |
+| Capa            | Tecnología                                              |
+| --------------- | ------------------------------------------------------- |
+| Frontend        | React 19.3, TypeScript, Vite 8                          |
+| Estado / datos  | React Context + TanStack React Query 5                  |
+| Gráficos        | Recharts (reporte) + componentes propios (dashboard)    |
+| Backend         | Node.js 22, Express 5                                   |
+| Validación      | Zod 4                                                   |
+| Base de datos   | PostgreSQL 16 (Neon.tech serverless) + migraciones      |
+| Auth            | JWT (12 h) + bcrypt                                     |
+| Backups         | `pg_dump` cifrado (AES-256-GCM) a Cloudflare R2         |
+| Testing         | Vitest + Supertest                                      |
+| Calidad         | Oxlint, `tsc`, `npm audit` como gate en CI              |
+| Despliegue      | Vercel (frontend estático + API serverless)             |
+
+> **Nota:** `react` y `react-dom` están pineados a la **misma versión exacta**: React 19 aborta el render con el error #527 si difieren aunque sea en un patch.
 
 ## Requisitos previos
 
-- Node.js ≥ 20
-- Cuenta en [Neon.tech](https://neon.tech) (PostgreSQL serverless) o PostgreSQL local
+- Node.js ≥ 22
+- PostgreSQL local **o** cuenta en [Neon.tech](https://neon.tech)
+- (Opcional, backups) bucket en Cloudflare R2 + `postgresql-client` (`pg_dump`/`pg_restore`)
 
 ## Configuración inicial
 
-1. Clona el repositorio:
+```bash
+git clone https://github.com/rondon-tech/HorasExtrasEntel.git
+cd horas-extras-app
+npm install
+cp .env.example .env   # completar con valores reales (nunca commitear .env)
+npm run migrate         # aplica migraciones a DATABASE_URL
+npm run dev             # frontend http://localhost:5173
+npm run server          # backend  http://localhost:3001 (Vite proxea /api)
+```
 
-   ```bash
-   git clone https://github.com/rondon-tech/HorasExtrasEntel.git
-   cd horas-extras-app
-   ```
+### Variables de entorno (resumen)
 
-2. Instala las dependencias:
+| Variable | Uso |
+| -------- | --- |
+| `DATABASE_URL` / `DATABASE_URL_FALLBACK` | PostgreSQL primaria y failover (`?sslmode=require`) |
+| `JWT_SECRET` (≥ 32 car.) | Firma de tokens |
+| `ADMIN_USER` / `ADMIN_PASSWORD` (≥ 12 car.) | Acceso administrador inicial |
+| `FRONTEND_URL`, `NODE_ENV` | CORS y modo producción |
+| `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | Backups |
+| `BACKUP_ENCRYPTION_KEY` (64 hex) | Cifrado AES-256-GCM de backups. Generar: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `DRILL_DATABASE_URL`, `DRILL_CONFIRM_NOT_PRODUCTION=1` | BD efímera del restore drill |
+| `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, … | Agentes IA (ver `.env.example` para la cascada completa) |
+| `SENTRY_DSN` | Observabilidad (opcional) |
+| `PGSSLMODE=disable` | Solo desarrollo local sin TLS |
 
-   ```bash
-   npm install
-   ```
-
-3. Copia el archivo de variables de entorno de ejemplo:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-4. Edita `.env` con los valores reales (consulta `.env.example` para la documentación de cada variable):
-
-   - `DATABASE_URL` — cadena de conexión de Neon.tech
-   - `JWT_SECRET` — secreto fuerte (genera uno con `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`)
-   - `ADMIN_USER` y `ADMIN_PASSWORD` — credenciales de acceso
-
-   **Nunca commitees `.env` a git.**
-
-5. Inicia el servidor de desarrollo:
-
-   ```bash
-   npm run dev    # Vite frontend (http://localhost:5173)
-   npm run server # Express backend (http://localhost:3001)
-   ```
-
-   En desarrollo, Vite redirige `/api` al backend automáticamente.
+La lista completa y documentada está en [`.env.example`](./.env.example).
 
 ## Scripts disponibles
 
-| Comando           | Descripción                                        |
-| ----------------- | -------------------------------------------------- |
-| `npm run dev`     | Inicia el frontend con HMR (Vite dev server)       |
-| `npm run server`  | Inicia el backend Express (solo local)             |
-| `npm run build`   | Compila TypeScript y genera el bundle de producción|
-| `npm run preview` | Previsualiza el build de producción localmente     |
-| `npm run lint`    | Ejecuta el linter (Oxlint)                         |
-| `npm test`        | Ejecuta los tests con Vitest                       |
-
-## Despliegue (Vercel)
-
-1. Conecta el repositorio a [Vercel](https://vercel.com).
-2. Configura las siguientes **variables de entorno** en Project Settings → Environment Variables:
-
-   | Variable          | Descripción                                  |
-   | ----------------- | -------------------------------------------- |
-   | `DATABASE_URL`    | Conexión a PostgreSQL (Neon.tech)            |
-   | `JWT_SECRET`      | Secreto para firmar tokens JWT (≥ 64 bytes)  |
-   | `ADMIN_USER`      | Usuario administrador                        |
-   | `ADMIN_PASSWORD`  | Contraseña del administrador                 |
-   | `FRONTEND_URL`    | URL del frontend (ej: `https://horas-extras.vercel.app`) |
-   | `NODE_ENV`        | `production`                                 |
-
-3. Despliega. Vercel usa `vercel.json` para enrutar `/api/*` al backend serverless y `/*` al frontend.
+| Comando | Descripción |
+| ------- | ----------- |
+| `npm run dev` / `npm run server` | Frontend (HMR) / backend Express local |
+| `npm run build` / `npm run preview` | Compilar (`tsc -b` + Vite) / previsualizar |
+| `npm run lint` / `npm run typecheck` | Oxlint / `tsc` backend |
+| `npm test` | Vitest (unitarios + integración de rutas Express) |
+| `npm run migrate` / `migrate:down` | Migraciones `node-pg-migrate` |
+| `npm run backup` / `npm run restore` | Backup cifrado a R2 / restore verificado (`RESTORE_TARGET=fallback\|primary`) |
+| `npm run agents:enrich` | Enriquecimiento de anomalías (A1) |
+| `npm run agents:report` | Reporte mensual de liquidaciones |
+| `npm run agents:drill` | Restore drill contra BD efímera |
+| `npm run eval:agents` | Evals anti-alucinación/anti-inyección (promptfoo) |
+| `npm run agents:ops` | Diagnóstico ops (vía `POST /api/agent/ops/diagnosis`) |
 
 ## Estructura del proyecto
 
 ```
 horas-extras-app/
-├── api/                  # Backend Express (JavaScript)
-│   ├── config/           # Validación de variables de entorno
-│   ├── middlewares/      # Auth, validación, error handler
-│   ├── schemas/          # Schemas Zod para validación de inputs
-│   ├── services/         # Lógica de negocio (cálculo de payroll)
-│   └── utils/            # Logger (Winston), Money utility
-├── src/                  # Frontend React (TypeScript)
-│   ├── api/              # Cliente Axios con interceptors JWT
-│   ├── components/       # Componentes compartidos
-│   ├── constants/        # Constantes (tareas, nemónicos, tipos de día)
-│   ├── context/          # AuthContext, AppContext
-│   ├── screens/          # Pantallas de la aplicación
-│   └── utils/            # Formateo, generación de PDFs
-├── .env.example          # Template de variables de entorno
-├── vercel.json           # Configuración de Vercel
-└── package.json
-```
-
-## Seguridad
-
-- Las variables de entorno críticas (`DATABASE_URL`, `JWT_SECRET`, `ADMIN_USER`, `ADMIN_PASSWORD`) son validadas al inicio del servidor. Si faltan, el servidor no arranca.
-- Helmet.js configura headers de seguridad HTTP (CSP, HSTS, etc.).
-- Rate limiting protege el endpoint de login (5 intentos por IP cada 15 minutos).
-- Todos los inputs de texto se sanitizan con `xss`.
-- El cuerpo de las peticiones está limitado a 1 MB.
-- El token JWT se almacena en el frontend (en una fase futura migrará a HttpOnly cookies).
-
-Para más detalles sobre la remediación de seguridad, consulta `SECURITY_REMEDIATION.md` y el plan completo en `PLAN_REMEDIACION.md`.
+├── api/index.js            # Bootstrap Express (CORS, rate-limit, routers, health, debug)
+├── middleware.ts           # Rate-limit en el edge de Vercel (rutas /api/*)
+├── server/
+│   ├── agents/             # Sistema de agentes (chat, OCR, voz, anomalías, reportes, ops, memoria, presupuesto, telemetría)
+│   ├── config/             # env (validado al arrancar), db, db-failover
+│   ├── controllers/        # auth, records, expenses, params, payroll, admin
+│   ├── middlewares/        # auth JWT, roles, cambio-password, validate (Zod), errorHandler
+│   ├── migrations/         # Migraciones versionadas (up/down) node-pg-migrate
+│   ├── repositories/       # Acceso a datos (SQL parametrizado, multi-tenant por user_id)
+│   ├── routes/             # auth, records, expenses, params, admin, agent
+│   ├── schemas/            # Schemas Zod por recurso
+│   ├── services/           # payroll.service (cálculo), email.service
+│   └── utils/              # logger, money, audit (audit_log)
+├── src/
+│   ├── api/client.ts       # Axios + JWT + manejo uniforme de errores
+│   ├── components/         # BentoCard, modales (viáticos, días, calendario, días libres, resumen, confirmación…), AssistantPanel, guards
+│   ├── constants/tasks.ts  # Tareas, sitios sugeridos, marcadores de días libres
+│   ├── context/            # AuthContext (token, rol) y AppContext (datos + derivados del mes)
+│   ├── hooks/              # useApi (React Query), usePayrollPDF, useHealthCheck
+│   ├── screens/            # Dashboard, DailyRecord, Expenses, RecordsList, History, Simulator, Profile, AdminPanel, Login, Register, ChangePassword
+│   └── utils/              # format (CLP/abreviado), fechas, PDFs (jsPDF)
+├── scripts/
+│   ├── backup.mjs / restore.mjs / restore-drill.mjs  # Backups v2 (ver abajo)
+│   └── lib/backup-common.mjs  # R2 paginado, AES-256-GCM, SHA-256, pg_dump/pg_restore
+├── evals/                  # Suites promptfoo para los agentes
+├── docs/ (adr/, contexto/) # Decisiones de arquitectura y contexto del dominio
+├── .github/workflows/      # CI, backups, restore, dr
+...[truncated 3075 chars]
