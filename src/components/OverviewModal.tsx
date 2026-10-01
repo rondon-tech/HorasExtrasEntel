@@ -6,6 +6,8 @@ import { useAppContext } from '../context/AppContext';
 import { TAREA_VACACIONES, TAREA_COMPENSATORIO } from '../constants/tasks';
 import { monthPrefix } from '../utils/dates';
 import MonthGrid from './MonthGrid';
+import { useTheme } from '../hooks/useTheme';
+import { darkenHex } from '../utils/color';
 
 interface OverviewModalProps {
   isOpen: boolean;
@@ -25,8 +27,18 @@ const STATUS_STYLE: Record<Exclude<DayStatus, 'off'>, { accent: string; soft: st
  * Resumen visual del mes: un solo calendario con TAP, días libres y
  * días sin jornada. Solo lectura.
  */
+type StatusColors = Record<Exclude<DayStatus, 'off'>, { accent: string; soft: string; label: string }>;
+
 const OverviewModal: React.FC<OverviewModalProps> = ({ isOpen, onClose }) => {
   const { records, currentMonth } = useAppContext();
+  const theme = useTheme();
+  // Acentos oscurecidos en modo claro para mantener contraste sobre blanco.
+  const ST: StatusColors = {
+    tap: { ...STATUS_STYLE.tap, accent: theme === 'light' ? darkenHex(STATUS_STYLE.tap.accent, 0.45) : STATUS_STYLE.tap.accent },
+    vac: { ...STATUS_STYLE.vac, accent: theme === 'light' ? darkenHex(STATUS_STYLE.vac.accent, 0.45) : STATUS_STYLE.vac.accent },
+    comp: { ...STATUS_STYLE.comp, accent: theme === 'light' ? darkenHex(STATUS_STYLE.comp.accent, 0.45) : STATUS_STYLE.comp.accent },
+    normal: { ...STATUS_STYLE.normal, accent: theme === 'light' ? darkenHex(STATUS_STYLE.normal.accent, 0.45) : STATUS_STYLE.normal.accent },
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -94,7 +106,7 @@ const OverviewModal: React.FC<OverviewModalProps> = ({ isOpen, onClose }) => {
         </span>
       );
     }
-    const st = STATUS_STYLE[status];
+    const st = ST[status];
     return (
       <span
         key={day}
@@ -116,8 +128,8 @@ const OverviewModal: React.FC<OverviewModalProps> = ({ isOpen, onClose }) => {
     <>
       {(['tap', 'vac', 'comp', 'normal'] as const).map((s) => (
         <p key={s} className="text-xs text-secondary m-0" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <span style={{ width: 10, height: 10, borderRadius: 3, background: STATUS_STYLE[s].soft, border: `1px solid ${STATUS_STYLE[s].accent}`, display: 'inline-block', flexShrink: 0 }} />
-          {STATUS_STYLE[s].label}
+          <span style={{ width: 10, height: 10, borderRadius: 3, background: ST[s].soft, border: `1px solid ${ST[s].accent}`, display: 'inline-block', flexShrink: 0 }} />
+          {ST[s].label}
         </p>
       ))}
       <p className="text-xs text-secondary m-0" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>

@@ -8,6 +8,8 @@ import { TAREA_VACACIONES, TAREA_COMPENSATORIO } from '../constants/tasks';
 import { formatShortDate } from '../utils/dates';
 import { ConfirmDialog } from './ConfirmDialog';
 import MonthGrid from './MonthGrid';
+import { useTheme } from '../hooks/useTheme';
+import { darkenHex } from '../utils/color';
 
 type TimeOffType = typeof TAREA_VACACIONES | typeof TAREA_COMPENSATORIO;
 
@@ -33,6 +35,18 @@ const isTimeOffRecord = (r: { extraHours?: number; dayType?: string; tarea?: str
  */
 const TimeOffModal: React.FC<TimeOffModalProps> = ({ isOpen, onClose }) => {
   const { records, currentMonth, addRecord, deleteRecord } = useAppContext();
+  const theme = useTheme();
+  // Acentos oscurecidos en modo claro para mantener contraste sobre blanco.
+  const TS: typeof TYPE_STYLE = {
+    [TAREA_VACACIONES]: {
+      ...TYPE_STYLE[TAREA_VACACIONES],
+      accent: theme === 'light' ? darkenHex(TYPE_STYLE[TAREA_VACACIONES].accent, 0.45) : TYPE_STYLE[TAREA_VACACIONES].accent,
+    },
+    [TAREA_COMPENSATORIO]: {
+      ...TYPE_STYLE[TAREA_COMPENSATORIO],
+      accent: theme === 'light' ? darkenHex(TYPE_STYLE[TAREA_COMPENSATORIO].accent, 0.45) : TYPE_STYLE[TAREA_COMPENSATORIO].accent,
+    },
+  };
   const [activeType, setActiveType] = useState<TimeOffType>(TAREA_VACACIONES);
   const [pending, setPending] = useState<Map<string, TimeOffType>>(new Map());
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
@@ -135,7 +149,7 @@ const TimeOffModal: React.FC<TimeOffModalProps> = ({ isOpen, onClose }) => {
     const saved = savedOf(iso);
     const pend = pending.get(iso) ?? null;
     const shown: TimeOffType | null = pend ?? saved;
-    const styleFor = shown ? TYPE_STYLE[shown] : null;
+    const styleFor = shown ? TS[shown] : null;
     const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
     return (
       <button
@@ -199,7 +213,7 @@ const TimeOffModal: React.FC<TimeOffModalProps> = ({ isOpen, onClose }) => {
 
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }} role="group" aria-label="Tipo de día libre">
           {([TAREA_VACACIONES, TAREA_COMPENSATORIO] as const).map((t) => {
-            const st = TYPE_STYLE[t];
+            const st = TS[t];
             const active = activeType === t;
             return (
               <button
@@ -237,8 +251,8 @@ const TimeOffModal: React.FC<TimeOffModalProps> = ({ isOpen, onClose }) => {
           <div className="mt-2" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             {([TAREA_VACACIONES, TAREA_COMPENSATORIO] as const).map((t) => (
               <p key={t} className="text-xs text-secondary m-0" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ width: 10, height: 10, borderRadius: 3, background: TYPE_STYLE[t].soft, border: `1px solid ${TYPE_STYLE[t].accent}`, display: 'inline-block', flexShrink: 0 }} />
-                {TYPE_STYLE[t].label}
+                <span style={{ width: 10, height: 10, borderRadius: 3, background: TS[t].soft, border: `1px solid ${TS[t].accent}`, display: 'inline-block', flexShrink: 0 }} />
+                {TS[t].label}
               </p>
             ))}
           </div>
@@ -274,3 +288,4 @@ const TimeOffModal: React.FC<TimeOffModalProps> = ({ isOpen, onClose }) => {
 };
 
 export default TimeOffModal;
+

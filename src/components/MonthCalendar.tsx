@@ -2,6 +2,8 @@ import React from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import MonthGrid from './MonthGrid';
+import { useTheme } from '../hooks/useTheme';
+import { darkenHex } from '../utils/color';
 
 interface MonthCalendarProps {
   year: number;
@@ -24,6 +26,7 @@ interface MonthCalendarProps {
 /**
  * Mini-calendario mensual: resalta visualmente las fechas marcadas.
  * Semana de lunes a domingo. Compacto para modales.
+ * El acento se oscurece automáticamente en modo claro para mantener contraste.
  */
 const MonthCalendar: React.FC<MonthCalendarProps> = ({
   year,
@@ -36,6 +39,8 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
   summarySoft,
   onDayClick,
 }) => {
+  const theme = useTheme();
+  const a = theme === 'light' ? darkenHex(accent, 0.45) : accent;
   const today = new Date();
   const isToday = (day: number) =>
     today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
@@ -45,10 +50,10 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
     const isSoft = !isMarked && (softMarked?.has(iso) ?? false);
     const isClickable = isSoft && typeof onDayClick === 'function';
     const todayMark = isToday(day);
-    // Tono fuerte (orgánico): igual que siempre. Tono suave (manual): misma gama
-    // pero más claro, con borde punteado para diferenciarlo a simple vista.
-    const softText = `color-mix(in srgb, ${accent} 72%, white)`;
-    const softBorder = `color-mix(in srgb, ${accent} 55%, transparent)`;
+    // Tono fuerte (orgánico). Tono suave (manual): misma gama pero más
+    // claro, con borde punteado para diferenciarlo a simple vista.
+    const softText = `color-mix(in srgb, ${a} 72%, white)`;
+    const softBorder = `color-mix(in srgb, ${a} 55%, transparent)`;
     const commonStyle: React.CSSProperties = {
       aspectRatio: '1',
       display: 'flex',
@@ -56,10 +61,10 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
       justifyContent: 'center',
       fontSize: '0.75rem',
       borderRadius: '0.5rem',
-      color: isMarked ? accent : isSoft ? softText : 'var(--text-muted)',
+      color: isMarked ? a : isSoft ? softText : 'var(--text-muted)',
       background: isMarked ? accentSoft : 'transparent',
-      border: isMarked ? `1px solid ${accent}` : isSoft ? `1px dashed ${softBorder}` : '1px solid transparent',
-      outline: todayMark ? `1px dashed ${isMarked || isSoft ? accent : 'var(--text-muted)'}` : 'none',
+      border: isMarked ? `1px solid ${a}` : isSoft ? `1px dashed ${softBorder}` : '1px solid transparent',
+      outline: todayMark ? `1px dashed ${isMarked || isSoft ? a : 'var(--text-muted)'}` : 'none',
       outlineOffset: '-3px',
       fontWeight: isMarked || isSoft ? 700 : 400,
       cursor: isClickable ? 'pointer' : 'default',
@@ -109,13 +114,13 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
         <div className="mt-2" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           {summary && (
             <p className="text-xs text-secondary m-0" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: accentSoft, border: `1px solid ${accent}`, display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ width: 10, height: 10, borderRadius: 3, background: accentSoft, border: `1px solid ${a}`, display: 'inline-block', flexShrink: 0 }} />
               {summary}
             </p>
           )}
           {summarySoft && (
             <p className="text-xs text-secondary m-0" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, border: `1px dashed ${accent}`, display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ width: 10, height: 10, borderRadius: 3, border: `1px dashed ${a}`, display: 'inline-block', flexShrink: 0 }} />
               {summarySoft}
             </p>
           )}
